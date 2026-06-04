@@ -513,8 +513,7 @@ function drawLyrics(w, h, curTime, visuals) {
         );
         ctx.clip();
         
-        ctx.fillStyle = visuals.colorLyricActive;
-        ctx.fillText(subText, textX, subLineY);
+        drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive);
         ctx.restore();
       }
     });

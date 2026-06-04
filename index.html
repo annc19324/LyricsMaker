@@ -652,7 +652,17 @@ Và chuyên nghiệp nhất"></textarea>
                 <button id="btn-clear-timings" class="btn btn-secondary" title="Đặt lại toàn bộ mốc thời gian về 0">Xóa tất cả (0s)</button>
               </div>
               
-              <div class="timings-list-wrapper" id="timings-list-container">
+              <div class="form-group hotkey-config-group mt-3">
+              <label><i class="fa-solid fa-keyboard"></i> Phím tắt đánh dấu:</label>
+              <div class="hotkey-badges-row" id="hotkey-badges-container">
+                <!-- rendered by JS -->
+              </div>
+              <button id="btn-add-hotkey" class="btn btn-secondary btn-small">
+                <i class="fa-solid fa-plus"></i> Thêm phím
+              </button>
+            </div>
+            
+            <div class="timings-list-wrapper" id="timings-list-container">
                 <div class="empty-timings-state">
                   <i class="fa-solid fa-hourglass-empty"></i>
                   <p>Chưa có dữ liệu lyrics. Nhấn tab <strong>Nhập Lyrics</strong> để bắt đầu.</p>

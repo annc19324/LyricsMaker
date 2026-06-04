@@ -1489,3 +1489,59 @@ canvas {
 
 /* ── flex-row utility ────────────────────────────────────────── */
 .flex-row { display: flex; align-items: center; }
+
+/* Hotkey Config Styling */
+.hotkey-config-group {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.hotkey-config-group label {
+  font-size: 11px !important;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.hotkey-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.hotkey-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #c7d2fe;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+}
+.hotkey-badge .btn-remove-hotkey {
+  cursor: pointer;
+  color: #f87171;
+  font-size: 10px;
+  transition: color 0.15s, transform 0.15s;
+}
+.hotkey-badge .btn-remove-hotkey:hover {
+  color: #ef4444;
+  transform: scale(1.15);
+}
+#btn-add-hotkey {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+#btn-add-hotkey.active {
+  background-color: var(--accent-color) !important;
+  color: #fff !important;
+  border-color: var(--accent-color) !important;
+}

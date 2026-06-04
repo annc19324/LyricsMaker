@@ -1222,15 +1222,16 @@ document.addEventListener("DOMContentLoaded", () => {
                      document.activeElement.tagName === "SELECT";
                      
     if (isTyping) return;
+    if (window.isListeningForHotkey) return; // Bypass if assigning a new hotkey
     
-    if (e.code === "Space") {
-      e.preventDefault();
-      handlePlayPause();
-    }
-    
-    if (e.code === "Enter") {
+    const markKeys = state.markKeys || ["Enter", "Space"];
+    if (markKeys.includes(e.code)) {
       e.preventDefault();
       markCurrentTiming();
+    } else if (e.code === "Space") {
+      // Only Play/Pause if Space is NOT registered as a marking hotkey
+      e.preventDefault();
+      handlePlayPause();
     }
   });
   

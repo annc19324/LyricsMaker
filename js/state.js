@@ -26,6 +26,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   volume: 80,
   timings: [0, 6.0, 12.0, 18.0, 24.0, 30.0, 36.0, 42.0],
   activeRatio: "16:9",
+  markKeys: ["Enter", "Space"],
   previewZoom: 100, // Zoom percentage of preview box (50% to 500%)
   visuals: {
     "16:9": {
@@ -200,6 +201,11 @@ export function loadSavedState() {
       if (parsedGlobal.highlightRules) {
         state.highlightRules = parsedGlobal.highlightRules;
       }
+      if (parsedGlobal.markKeys) {
+        state.markKeys = parsedGlobal.markKeys;
+      } else {
+        state.markKeys = ["Enter", "Space"];
+      }
       if (parsedGlobal.activeLeftTab) {
         state.activeLeftTab = parsedGlobal.activeLeftTab;
       }
@@ -260,6 +266,7 @@ export function saveCurrentState(activeRatio, lyricsList, uiValues, tabState) {
     previewZoom: state.previewZoom,
     timings: state.timings,
     highlightRules: state.highlightRules,
+    markKeys: state.markKeys,
     activeLeftTab: state.activeLeftTab,
     activeRightTab: state.activeRightTab
   }));
