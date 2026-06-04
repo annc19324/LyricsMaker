@@ -1,21 +1,5 @@
 /* --- APP INITIALIZATION & EVENT BINDINGS MODULE (MAIN Entry point) --- */
 
-// Global Web Worker Proxy to bypass Cross-Origin Worker restrictions for FFmpeg.js UMD chunks
-if (window.Worker && !window.__workerProxyApplied) {
-  const OriginalWorker = window.Worker;
-  window.Worker = class ProxyWorker extends OriginalWorker {
-    constructor(scriptURL, options) {
-      let url = scriptURL.toString();
-      if (url.indexOf('814.ffmpeg.js') !== -1) {
-        url = window.location.origin + '/js/ffmpeg/814.ffmpeg.js';
-        console.log('[Worker Proxy] Redirected FFmpeg worker chunk to local Same-Origin URL:', url);
-      }
-      super(url, options);
-    }
-  };
-  window.__workerProxyApplied = true;
-}
-
 import { 
   state, lyrics, syncCursorIndex, timeFormatMMSS,
   loadSavedState, saveCurrentState, resetAllState,
