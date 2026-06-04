@@ -588,7 +588,13 @@ function startVideoExport() {
   modalExport.classList.remove("hidden");
   exportRunningView.classList.remove("hidden");
   exportSuccessView.classList.add("hidden");
-  
+
+  // Reset phase UI
+  const _phTitle = document.getElementById("export-phase-title");
+  const _phDesc  = document.getElementById("export-phase-desc");
+  if (_phTitle) _phTitle.innerText = "⏺ Đang ghi hình...";
+  if (_phDesc)  _phDesc.innerText  = "Vui lòng giữ tab này mở. Đang ghi canvas và âm thanh theo thời gian thực.";
+
   audioPlayer.pause();
   btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
   btnPlayPause.classList.remove("active");
@@ -633,16 +639,11 @@ function startVideoExport() {
     if (event.data && event.data.size > 0) exportBlobs.push(event.data);
   };
   
-  mediaRecorder.onstop = () => {
+  mediaRecorder.onstop = async () => {
     if (speakerGainNode) speakerGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-    
-    const blob = new Blob(exportBlobs, { type: "video/webm" });
-    const url = URL.createObjectURL(blob);
-    downloadVideoLink.href = url;
-    downloadVideoLink.download = `lyrics-maker-${state.songTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.webm`;
-    
-    exportRunningView.classList.add("hidden");
-    exportSuccessView.classList.remove("hidden");
+    const webmBlob = new Blob(exportBlobs, { type: "video/webm" });
+    // Phase 2: Auto-convert WebM -> MP4 via ffmpeg.wasm
+    await convertWebmToMp4(webmBlob);
     isExporting = false;
   };
   
@@ -681,6 +682,93 @@ function startVideoExport() {
     exportProgressFill.innerText = `${Math.floor(progress)}%`;
     exportStatusText.innerText = `Đang ghi hình và âm thanh: ${elapsed.toFixed(1)}s / ${totalDuration.toFixed(1)}s`;
   };
+}
+
+
+async function convertWebmToMp4(webmBlob) {
+  const phaseTitle = document.getElementById('export-phase-title');
+  const phaseDesc  = document.getElementById('export-phase-desc');
+
+  if (phaseTitle) phaseTitle.innerText = '\u23f3 \u0110ang chuy\u1ec3n \u0111\u1ed5i sang MP4...';
+  if (phaseDesc)  phaseDesc.innerText  = 'Vui l\u00f2ng ch\u1edd. FFmpeg \u0111ang encode MP4 (H.264) ngay trong tr\u00ecnh duy\u1ec7t.';
+  exportProgressFill.style.width = '0%';
+  exportProgressFill.innerText   = '0%';
+  exportStatusText.innerText     = '\u0110ang t\u1ea3i FFmpeg engine...';
+
+  try {
+    const FFmpegLib  = window.FFmpegWASM;
+    const FFmpegUtil = window.FFmpegUtil;
+
+    if (!FFmpegLib || !FFmpegUtil) {
+      throw new Error('FFmpeg.wasm ch\u01b0a load xong. Vui l\u00f2ng th\u1eed l\u1ea1i sau v\u00e0i gi\u00e2y.');
+    }
+
+    const { FFmpeg }    = FFmpegLib;
+    const { fetchFile } = FFmpegUtil;
+    const ffmpeg = new FFmpeg();
+
+    ffmpeg.on('log', ({ message }) => { console.log('[FFmpeg]', message); });
+
+    ffmpeg.on('progress', ({ progress }) => {
+      const pct = Math.round(progress * 100);
+      exportProgressFill.style.width = pct + '%';
+      exportProgressFill.innerText   = pct + '%';
+      exportStatusText.innerText     = '\u2699\ufe0f \u0110ang encode MP4: ' + pct + '%';
+    });
+
+    exportStatusText.innerText = '\u0110ang load FFmpeg engine (l\u1ea7n \u0111\u1ea7u ~10-20s)...';
+
+    await ffmpeg.load({
+      coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+    });
+
+    exportStatusText.innerText = 'FFmpeg s\u1eb5n s\u00e0ng, \u0111ang encode...';
+
+    await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+
+    await ffmpeg.exec([
+      '-i',        'input.webm',
+      '-c:v',      'libx264',
+      '-preset',   'fast',
+      '-crf',      '23',
+      '-c:a',      'aac',
+      '-b:a',      '192k',
+      '-movflags', '+faststart',
+      'output.mp4'
+    ]);
+
+    const mp4Data = await ffmpeg.readFile('output.mp4');
+    const mp4Blob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+    const mp4Url  = URL.createObjectURL(mp4Blob);
+
+    const safeName = (state.songTitle || 'lyrics-maker').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    downloadVideoLink.href      = mp4Url;
+    downloadVideoLink.download  = safeName + '.mp4';
+    downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> T\u1ea3i Video (.mp4)';
+
+    await ffmpeg.deleteFile('input.webm');
+    await ffmpeg.deleteFile('output.mp4');
+
+    exportRunningView.classList.add('hidden');
+    exportSuccessView.classList.remove('hidden');
+    showToast('Xu\u1ea5t MP4 th\u00e0nh c\u00f4ng! \ud83c\udf89', 'success', 4000);
+
+  } catch (err) {
+    console.error('FFmpeg convert error:', err);
+
+    if (phaseTitle) phaseTitle.innerText = '\u26a0\ufe0f Kh\u00f4ng th\u1ec3 convert sang MP4';
+    if (phaseDesc)  phaseDesc.innerText  = 'L\u1ed7i: ' + err.message + '. B\u1ea1n c\u00f3 th\u1ec3 t\u1ea3i file WebM thay th\u1ebf.';
+
+    const webmUrl  = URL.createObjectURL(webmBlob);
+    const safeName = (state.songTitle || 'lyrics-maker').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    downloadVideoLink.href      = webmUrl;
+    downloadVideoLink.download  = safeName + '.webm';
+    downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> T\u1ea3i Video (.webm)';
+
+    exportRunningView.classList.add('hidden');
+    exportSuccessView.classList.remove('hidden');
+    showToast('Kh\u00f4ng convert \u0111\u01b0\u1ee3c MP4, \u0111ang t\u1ea3i WebM thay th\u1ebf.', 'warning', 5000);
+  }
 }
 
 function cancelVideoExport() {

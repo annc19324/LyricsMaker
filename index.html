@@ -12,6 +12,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Pacifico&display=swap" rel="stylesheet">
   <!-- Style Sheet -->
   <link rel="stylesheet" href="styles.css">
+  <!-- FFmpeg.wasm for MP4 conversion -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -529,12 +532,13 @@ Và chuyên nghiệp nhất"></textarea>
           <button class="modal-close" id="btn-close-export"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="modal-body">
+          <!-- Phase 1: Recording -->
           <div class="export-progress-container" id="export-running-view">
             <div class="spinner-spinner">
               <i class="fa-solid fa-spinner fa-spin-pulse"></i>
             </div>
-            <h3>Đang xuất video...</h3>
-            <p>Vui lòng giữ tab này mở. Chúng tôi đang ghi lại trực tiếp preview với chất lượng cao.</p>
+            <h3 id="export-phase-title">⏺ Đang ghi hình...</h3>
+            <p id="export-phase-desc">Vui lòng giữ tab này mở. Đang ghi lại canvas và âm thanh theo thời gian thực.</p>
             <div class="export-progress-bar">
               <div class="export-progress-fill" id="export-progress-fill">0%</div>
             </div>
@@ -544,17 +548,14 @@ Và chuyên nghiệp nhất"></textarea>
 
           <div class="export-result-container hidden" id="export-success-view">
             <i class="fa-solid fa-circle-check success-icon"></i>
-            <h3>Xuất video thành công!</h3>
-            <p>Video của bạn đã sẵn sàng để tải xuống. Bạn có thể sử dụng trực tiếp trên TikTok, Youtube hoặc Instagram.</p>
+            <h3>Xuất MP4 thành công! 🎉</h3>
+            <p>Video MP4 của bạn đã sẵn sàng. Tương thích với TikTok, YouTube, Instagram và mọi thiết bị.</p>
             <div class="export-actions-row">
-              <a href="#" id="download-video-link" class="btn btn-primary btn-glow" download="lyrics-maker-output.webm">
-                <i class="fa-solid fa-download"></i> Tải Video (.webm)
+              <a href="#" id="download-video-link" class="btn btn-primary btn-glow" download="lyrics-maker-output.mp4">
+                <i class="fa-solid fa-download"></i> Tải Video (.mp4)
               </a>
               <button id="btn-close-success" class="btn btn-secondary">Đóng</button>
             </div>
-            <p class="export-webm-note mt-3">
-              * Định dạng WebM được tối ưu hóa cho chất lượng và thời gian xử lý trực tiếp trên trình duyệt. Bạn có thể tải lên trực tiếp các nền tảng mạng xã hội hoặc đổi sang MP4 qua các công cụ chuyển đổi nếu cần.
-            </p>
           </div>
         </div>
       </div>
