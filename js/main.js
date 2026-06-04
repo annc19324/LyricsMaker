@@ -555,12 +555,16 @@ function handleTimeUpdate() {
     if (mainVideo) mainVideo.pause();
   }
   
-  timeCurrent.innerText = formatTime(audioPlayer.currentTime);
-  timeTotal.innerText = formatTime(dur);
+  // Show time relative to trim range
+  const trimDuration = end - start;
+  const elapsed = Math.max(0, cur - start);
+  timeCurrent.innerText = formatTime(elapsed);
+  timeTotal.innerText = formatTime(trimDuration);
   
   if (!isProgressBarDragging) {
-    sliderPlaybackProgress.value = (cur / dur) * 100;
-    progressBarFill.style.width = `${(cur / dur) * 100}%`;
+    const progress = trimDuration > 0 ? (elapsed / trimDuration) * 100 : 0;
+    sliderPlaybackProgress.value = progress;
+    progressBarFill.style.width = `${progress}%`;
   }
 
   // Highlight currently playing lyric in timing editor
@@ -1154,14 +1158,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const percent = parseFloat(e.target.value);
     progressBarFill.style.width = `${percent}%`;
     const dur = audioPlayer.duration || 60;
-    timeCurrent.innerText = formatTime((percent / 100) * dur);
+    const trimStart = parseFloat(state.audioStart) || 0;
+    const trimEnd   = state.audioEnd === "auto" ? dur : parseFloat(state.audioEnd);
+    const trimDur   = trimEnd - trimStart;
+    timeCurrent.innerText = formatTime((percent / 100) * trimDur);
   });
 
   sliderPlaybackProgress.addEventListener("change", (e) => {
     isProgressBarDragging = false;
     const percent = parseFloat(e.target.value);
     const dur = audioPlayer.duration || 60;
-    audioPlayer.currentTime = (percent / 100) * dur;
+    const trimStart = parseFloat(state.audioStart) || 0;
+    const trimEnd   = state.audioEnd === "auto" ? dur : parseFloat(state.audioEnd);
+    const trimDur   = trimEnd - trimStart;
+    audioPlayer.currentTime = trimStart + (percent / 100) * trimDur;
   });
   
   // Volume Slider
