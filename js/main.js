@@ -1027,7 +1027,7 @@ document.addEventListener("DOMContentLoaded", () => {
     input.addEventListener("input", handler);
     input.addEventListener("change", handler);
   });
-  
+
   // Bind dynamic new inputs
   const dynamicInputs = [
     { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
@@ -1056,31 +1056,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".align-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       saveState();
-    };
-    input.addEventListener("input", handler);
-    input.addEventListener("change", handler);
-  });
-  
-  // Bind dynamic new inputs
-  const dynamicInputs = [
-    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
-    { el: toggleKaraoke() },
-    { el: toggleTransition() },
-    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
-  ];
-  
-  dynamicInputs.forEach(item => {
-    if (item.el) {
-      const handler = () => {
-        if (item.labelId) {
-          const label = document.getElementById(item.labelId);
-          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
-        }
-        saveState();
-      };
-      item.el.addEventListener("input", handler);
-      item.el.addEventListener("change", handler);
-    }
+    });
   });
   
   // Preview Zoom slider bindings
@@ -1214,31 +1190,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       applyStateToUI();
       saveState();
-    };
-    input.addEventListener("input", handler);
-    input.addEventListener("change", handler);
-  });
-  
-  // Bind dynamic new inputs
-  const dynamicInputs = [
-    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
-    { el: toggleKaraoke() },
-    { el: toggleTransition() },
-    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
-  ];
-  
-  dynamicInputs.forEach(item => {
-    if (item.el) {
-      const handler = () => {
-        if (item.labelId) {
-          const label = document.getElementById(item.labelId);
-          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
-        }
-        saveState();
-      };
-      item.el.addEventListener("input", handler);
-      item.el.addEventListener("change", handler);
-    }
+    });
   });
   
   // Media Type image vs video toggles
@@ -1359,31 +1311,7 @@ document.addEventListener("DOMContentLoaded", () => {
         valEl.innerText = el.value + unit;
       }
       saveState();
-    };
-    input.addEventListener("input", handler);
-    input.addEventListener("change", handler);
-  });
-  
-  // Bind dynamic new inputs
-  const dynamicInputs = [
-    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
-    { el: toggleKaraoke() },
-    { el: toggleTransition() },
-    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
-  ];
-  
-  dynamicInputs.forEach(item => {
-    if (item.el) {
-      const handler = () => {
-        if (item.labelId) {
-          const label = document.getElementById(item.labelId);
-          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
-        }
-        saveState();
-      };
-      item.el.addEventListener("input", handler);
-      item.el.addEventListener("change", handler);
-    }
+    });
   });
 
   const newToggles = ["toggle-main-border","toggle-main-spin","toggle-main-full","toggle-watermark","toggle-wm-italic","toggle-wm-bold"];
@@ -1402,31 +1330,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (hex) hex.innerText = el.value.toUpperCase();
       }
       saveState();
-    };
-    input.addEventListener("input", handler);
-    input.addEventListener("change", handler);
-  });
-  
-  // Bind dynamic new inputs
-  const dynamicInputs = [
-    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
-    { el: toggleKaraoke() },
-    { el: toggleTransition() },
-    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
-  ];
-  
-  dynamicInputs.forEach(item => {
-    if (item.el) {
-      const handler = () => {
-        if (item.labelId) {
-          const label = document.getElementById(item.labelId);
-          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
-        }
-        saveState();
-      };
-      item.el.addEventListener("input", handler);
-      item.el.addEventListener("change", handler);
-    }
+    });
   });
 
   // Song info align buttons
@@ -1435,31 +1339,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".si-align-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       saveState();
-    };
-    input.addEventListener("input", handler);
-    input.addEventListener("change", handler);
-  });
-  
-  // Bind dynamic new inputs
-  const dynamicInputs = [
-    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
-    { el: toggleKaraoke() },
-    { el: toggleTransition() },
-    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
-  ];
-  
-  dynamicInputs.forEach(item => {
-    if (item.el) {
-      const handler = () => {
-        if (item.labelId) {
-          const label = document.getElementById(item.labelId);
-          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
-        }
-        saveState();
-      };
-      item.el.addEventListener("input", handler);
-      item.el.addEventListener("change", handler);
-    }
+    });
   });
 
   // Add highlight rule button

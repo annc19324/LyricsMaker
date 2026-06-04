@@ -476,8 +476,7 @@ function drawLyrics(w, h, curTime, visuals) {
       textX = lyricXPixel + (visuals.frameWidth ? visuals.frameWidth / 2.2 : 200);
     }
     
-    const subLines = item.text.split("
-");
+    const subLines = item.text.replace(new RegExp(String.fromCharCode(13), "g"), "").split(String.fromCharCode(10));
     const subLineSpacing = fontSize * 1.2;
     
     subLines.forEach((subText, subIdx) => {
