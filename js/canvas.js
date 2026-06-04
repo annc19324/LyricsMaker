@@ -225,12 +225,12 @@ function renderCanvas() {
     mainMediaLoaded = true;
     ctx.translate(mainXPixel, mainYPixel);
     if (visuals.mainShape === "circle") ctx.rotate(rotationAngle);
-    ctx.drawImage(mainImage, -size / 2, -size / 2, size, size);
+    drawCover(ctx, mainImage, -size / 2, -size / 2, size, size);
   } else if (mainMediaType === "video" && mainVideo.src && !mainVideo.paused && mainVideo.readyState >= 2) {
     mainMediaLoaded = true;
     ctx.translate(mainXPixel, mainYPixel);
     if (visuals.mainShape === "circle") ctx.rotate(rotationAngle);
-    ctx.drawImage(mainVideo, -size / 2, -size / 2, size, size);
+    drawCover(ctx, mainVideo, -size / 2, -size / 2, size, size);
   }
   ctx.restore();
   
@@ -606,6 +606,22 @@ function drawWatermark(ctx, w, h, visuals) {
     ctx.fillText(text, 0, 0);
   }
   ctx.restore();
+}
+
+
+// Draw image/video with object-fit: cover (preserves aspect ratio, crops to fill)
+function drawCover(ctx, source, dx, dy, dw, dh) {
+  const sw = source.naturalWidth || source.videoWidth || dw;
+  const sh = source.naturalHeight || source.videoHeight || dh;
+  if (!sw || !sh) { ctx.drawImage(source, dx, dy, dw, dh); return; }
+
+  const scale = Math.max(dw / sw, dh / sh);
+  const scaledW = sw * scale;
+  const scaledH = sh * scale;
+  const offsetX = (dw - scaledW) / 2;
+  const offsetY = (dh - scaledH) / 2;
+
+  ctx.drawImage(source, dx + offsetX, dy + offsetY, scaledW, scaledH);
 }
 
 function hexToRgba(hex, alpha) {
