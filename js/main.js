@@ -133,6 +133,23 @@ let exportBlobs = [];
 
 // --- Functions ---
 
+
+function parseTimeToSeconds(val) {
+  if (val === "auto" || val === "" || val === undefined || val === null) return "auto";
+  const str = String(val).trim();
+  if (str.toLowerCase() === "auto") return "auto";
+  if (str.includes(":")) {
+    const parts = str.split(":");
+    if (parts.length === 2) {
+      const mins = parseFloat(parts[0]) || 0;
+      const secs = parseFloat(parts[1]) || 0;
+      return mins * 60 + secs;
+    }
+  }
+  const parsed = parseFloat(str);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 function syncLyricsFromRawText() {
   const blocks = parseLyricsText(textareaLyricsRaw.value);
   const newLyrics = [];
@@ -540,8 +557,8 @@ function handleTimeUpdate() {
   const cur = audioPlayer.currentTime;
   const dur = audioPlayer.duration || 60;
   
-  const start = parseFloat(state.audioStart) || 0;
-  const end = state.audioEnd === "auto" ? dur : parseFloat(state.audioEnd);
+  const start = parseTimeToSeconds(state.audioStart) || 0;
+  const end = state.audioEnd === "auto" ? dur : parseTimeToSeconds(state.audioEnd);
   
   if (cur < start) {
     audioPlayer.currentTime = start;
@@ -696,8 +713,8 @@ function startVideoExport() {
   btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
   btnPlayPause.classList.remove("active");
   
-  const trimStart = parseFloat(state.audioStart) || 0;
-  const trimEnd = state.audioEnd === "auto" ? (audioPlayer.duration || 60) : parseFloat(state.audioEnd);
+  const trimStart = parseTimeToSeconds(state.audioStart) || 0;
+  const trimEnd = state.audioEnd === "auto" ? (audioPlayer.duration || 60) : parseTimeToSeconds(state.audioEnd);
   const totalDuration = trimEnd - trimStart;
   
   audioPlayer.currentTime = trimStart;
@@ -1066,7 +1083,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderTimingsList();
 
     // Seek to audioStart and continue playing
-    const startTime = parseFloat(state.audioStart) || 0;
+    const startTime = parseTimeToSeconds(state.audioStart) || 0;
     initAudioContext();
     audioPlayer.currentTime = startTime;
     if (audioPlayer.paused) {
@@ -1158,8 +1175,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const percent = parseFloat(e.target.value);
     progressBarFill.style.width = `${percent}%`;
     const dur = audioPlayer.duration || 60;
-    const trimStart = parseFloat(state.audioStart) || 0;
-    const trimEnd   = state.audioEnd === "auto" ? dur : parseFloat(state.audioEnd);
+    const trimStart = parseTimeToSeconds(state.audioStart) || 0;
+    const trimEnd   = state.audioEnd === "auto" ? dur : parseTimeToSeconds(state.audioEnd);
     const trimDur   = trimEnd - trimStart;
     timeCurrent.innerText = formatTime((percent / 100) * trimDur);
   });
@@ -1168,8 +1185,8 @@ document.addEventListener("DOMContentLoaded", () => {
     isProgressBarDragging = false;
     const percent = parseFloat(e.target.value);
     const dur = audioPlayer.duration || 60;
-    const trimStart = parseFloat(state.audioStart) || 0;
-    const trimEnd   = state.audioEnd === "auto" ? dur : parseFloat(state.audioEnd);
+    const trimStart = parseTimeToSeconds(state.audioStart) || 0;
+    const trimEnd   = state.audioEnd === "auto" ? dur : parseTimeToSeconds(state.audioEnd);
     const trimDur   = trimEnd - trimStart;
     audioPlayer.currentTime = trimStart + (percent / 100) * trimDur;
   });

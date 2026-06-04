@@ -28,6 +28,9 @@ mainVideo.autoplay = true;
 // Fog particle list
 const fogParticles = [];
 
+// Persistent rotation for main media
+let mainMediaRotation = 0;
+
 export function setBgMediaType(val) {
   bgMediaType = val;
 }
@@ -208,7 +211,11 @@ function renderCanvas() {
   
   const spinEnabled = visuals.spinEnabled !== false;
   const spinSpeedMult = visuals.spinSpeed || 1.0;
-  const rotationAngle = (spinEnabled && !audioPlayer.paused) ? Date.now() * 0.0006 * spinSpeedMult : 0;
+  if (spinEnabled && !audioPlayer.paused) {
+    // 60fps average step ~ 0.016. Multiplied by speed.
+    mainMediaRotation += 0.012 * spinSpeedMult;
+  }
+  const rotationAngle = mainMediaRotation;
   
   let mainMediaLoaded = false;
   
@@ -224,12 +231,12 @@ function renderCanvas() {
   if (mainMediaType === "image" && mainImage.src) {
     mainMediaLoaded = true;
     ctx.translate(mainXPixel, mainYPixel);
-    if (visuals.mainShape === "circle") ctx.rotate(rotationAngle);
+    ctx.rotate(rotationAngle);
     drawCover(ctx, mainImage, -size / 2, -size / 2, size, size);
   } else if (mainMediaType === "video" && mainVideo.src && !mainVideo.paused && mainVideo.readyState >= 2) {
     mainMediaLoaded = true;
     ctx.translate(mainXPixel, mainYPixel);
-    if (visuals.mainShape === "circle") ctx.rotate(rotationAngle);
+    ctx.rotate(rotationAngle);
     drawCover(ctx, mainVideo, -size / 2, -size / 2, size, size);
   }
   ctx.restore();
