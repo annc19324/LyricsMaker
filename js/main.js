@@ -107,6 +107,10 @@ const btnClearTimings = document.getElementById("btn-clear-timings");
 const toggleMainBorder  = () => document.getElementById("toggle-main-border");
 const toggleMainSpin    = () => document.getElementById("toggle-main-spin");
 const toggleMainFull    = () => document.getElementById("toggle-main-full");
+const sliderLineSpacing = () => document.getElementById("slider-line-spacing");
+const toggleKaraoke     = () => document.getElementById("toggle-karaoke");
+const toggleTransition  = () => document.getElementById("toggle-transition");
+const sliderTransitionSpeed = () => document.getElementById("slider-transition-speed");
 const sliderSpinSpeed   = () => document.getElementById("slider-spin-speed");
 const sliderFogSpeed    = () => document.getElementById("slider-fog-speed");
 const toggleWatermark   = () => document.getElementById("toggle-watermark");
@@ -342,6 +346,10 @@ function saveState() {
       frameWidth: parseInt(sliderFrameWidth.value) || 600,
       frameHeight: parseInt(sliderFrameHeight.value) || 150,
       colorFrameBg: colorFrameBg.value,
+      lineSpacing: parseFloat(sliderLineSpacing()?.value) || 1.5,
+      karaokeEnabled: toggleKaraoke()?.checked ?? true,
+      transitionEnabled: toggleTransition()?.checked ?? true,
+      transitionSpeed: parseFloat(sliderTransitionSpeed()?.value) || 0.1,
       mainBorderEnabled: toggleMainBorder()?.checked ?? true,
       mainFullEnabled:   toggleMainFull()?.checked ?? false,
       spinEnabled:       toggleMainSpin()?.checked ?? true,
@@ -487,6 +495,23 @@ function applyStateToUI() {
     
     colorFrameBg.value = visuals.colorFrameBg;
     colorFrameBg.parentElement.querySelector(".color-hex").innerText = visuals.colorFrameBg.toUpperCase();
+    
+    if (sliderLineSpacing()) {
+      sliderLineSpacing().value = visuals.lineSpacing !== undefined ? visuals.lineSpacing : 1.5;
+      const el = document.getElementById("val-line-spacing");
+      if (el) el.innerText = `${sliderLineSpacing().value}x`;
+    }
+    if (toggleKaraoke()) {
+      toggleKaraoke().checked = visuals.karaokeEnabled !== false;
+    }
+    if (toggleTransition()) {
+      toggleTransition().checked = visuals.transitionEnabled !== false;
+    }
+    if (sliderTransitionSpeed()) {
+      sliderTransitionSpeed().value = visuals.transitionSpeed !== undefined ? visuals.transitionSpeed : 0.1;
+      const el = document.getElementById("val-transition-speed");
+      if (el) el.innerText = `${sliderTransitionSpeed().value}x`;
+    }
   }
   
   updateCanvasSize();
@@ -974,7 +999,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
   
   inputs.forEach(input => {
-    input.addEventListener("input", () => {
+    const handler = () => {
       // Numerical label updates
       if (input.id === "slider-bg-blur") document.getElementById("val-bg-blur").innerText = `${input.value}px`;
       if (input.id === "slider-bg-overlay") document.getElementById("val-bg-overlay").innerText = `${input.value}%`;
@@ -998,7 +1023,31 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       
       saveState();
-    });
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("change", handler);
+  });
+  
+  // Bind dynamic new inputs
+  const dynamicInputs = [
+    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
+    { el: toggleKaraoke() },
+    { el: toggleTransition() },
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+  ];
+  
+  dynamicInputs.forEach(item => {
+    if (item.el) {
+      const handler = () => {
+        if (item.labelId) {
+          const label = document.getElementById(item.labelId);
+          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
+        }
+        saveState();
+      };
+      item.el.addEventListener("input", handler);
+      item.el.addEventListener("change", handler);
+    }
   });
   
   // Align select buttons
@@ -1007,7 +1056,31 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".align-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       saveState();
-    });
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("change", handler);
+  });
+  
+  // Bind dynamic new inputs
+  const dynamicInputs = [
+    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
+    { el: toggleKaraoke() },
+    { el: toggleTransition() },
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+  ];
+  
+  dynamicInputs.forEach(item => {
+    if (item.el) {
+      const handler = () => {
+        if (item.labelId) {
+          const label = document.getElementById(item.labelId);
+          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
+        }
+        saveState();
+      };
+      item.el.addEventListener("input", handler);
+      item.el.addEventListener("change", handler);
+    }
   });
   
   // Preview Zoom slider bindings
@@ -1141,7 +1214,31 @@ document.addEventListener("DOMContentLoaded", () => {
       
       applyStateToUI();
       saveState();
-    });
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("change", handler);
+  });
+  
+  // Bind dynamic new inputs
+  const dynamicInputs = [
+    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
+    { el: toggleKaraoke() },
+    { el: toggleTransition() },
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+  ];
+  
+  dynamicInputs.forEach(item => {
+    if (item.el) {
+      const handler = () => {
+        if (item.labelId) {
+          const label = document.getElementById(item.labelId);
+          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
+        }
+        saveState();
+      };
+      item.el.addEventListener("input", handler);
+      item.el.addEventListener("change", handler);
+    }
   });
   
   // Media Type image vs video toggles
@@ -1262,7 +1359,31 @@ document.addEventListener("DOMContentLoaded", () => {
         valEl.innerText = el.value + unit;
       }
       saveState();
-    });
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("change", handler);
+  });
+  
+  // Bind dynamic new inputs
+  const dynamicInputs = [
+    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
+    { el: toggleKaraoke() },
+    { el: toggleTransition() },
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+  ];
+  
+  dynamicInputs.forEach(item => {
+    if (item.el) {
+      const handler = () => {
+        if (item.labelId) {
+          const label = document.getElementById(item.labelId);
+          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
+        }
+        saveState();
+      };
+      item.el.addEventListener("input", handler);
+      item.el.addEventListener("change", handler);
+    }
   });
 
   const newToggles = ["toggle-main-border","toggle-main-spin","toggle-main-full","toggle-watermark","toggle-wm-italic","toggle-wm-bold"];
@@ -1281,7 +1402,31 @@ document.addEventListener("DOMContentLoaded", () => {
         if (hex) hex.innerText = el.value.toUpperCase();
       }
       saveState();
-    });
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("change", handler);
+  });
+  
+  // Bind dynamic new inputs
+  const dynamicInputs = [
+    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
+    { el: toggleKaraoke() },
+    { el: toggleTransition() },
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+  ];
+  
+  dynamicInputs.forEach(item => {
+    if (item.el) {
+      const handler = () => {
+        if (item.labelId) {
+          const label = document.getElementById(item.labelId);
+          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
+        }
+        saveState();
+      };
+      item.el.addEventListener("input", handler);
+      item.el.addEventListener("change", handler);
+    }
   });
 
   // Song info align buttons
@@ -1290,7 +1435,31 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".si-align-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       saveState();
-    });
+    };
+    input.addEventListener("input", handler);
+    input.addEventListener("change", handler);
+  });
+  
+  // Bind dynamic new inputs
+  const dynamicInputs = [
+    { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
+    { el: toggleKaraoke() },
+    { el: toggleTransition() },
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+  ];
+  
+  dynamicInputs.forEach(item => {
+    if (item.el) {
+      const handler = () => {
+        if (item.labelId) {
+          const label = document.getElementById(item.labelId);
+          if (label) label.innerText = `${item.el.value}${item.suffix || ''}`;
+        }
+        saveState();
+      };
+      item.el.addEventListener("input", handler);
+      item.el.addEventListener("change", handler);
+    }
   });
 
   // Add highlight rule button

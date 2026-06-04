@@ -31,6 +31,10 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   visuals: {
     "16:9": {
       bgBlur: 0,           // Default to 0 as requested
+      lineSpacing: 1.5,
+      karaokeEnabled: true,
+      transitionEnabled: true,
+      transitionSpeed: 0.1,
       bgOverlayOpacity: 0, // Default to 0 as requested
       mainShape: "circle",
       mainSize: 220,
@@ -79,6 +83,10 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
     },
     "9:16": {
       bgBlur: 0,           // Default to 0 as requested
+      lineSpacing: 1.5,
+      karaokeEnabled: true,
+      transitionEnabled: true,
+      transitionSpeed: 0.1,
       bgOverlayOpacity: 0, // Default to 0 as requested
       mainShape: "circle",
       mainSize: 200,
@@ -127,6 +135,10 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
     },
     "1:1": {
       bgBlur: 0,           // Default to 0 as requested
+      lineSpacing: 1.5,
+      karaokeEnabled: true,
+      transitionEnabled: true,
+      transitionSpeed: 0.1,
       bgOverlayOpacity: 0, // Default to 0 as requested
       mainShape: "circle",
       mainSize: 180,

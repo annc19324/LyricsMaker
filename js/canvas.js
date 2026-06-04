@@ -394,13 +394,27 @@ function drawLyrics(w, h, curTime, visuals) {
   const lyricXPixel = (visuals.lyricX / 100) * w;
   const lyricYPixel = (visuals.lyricY / 100) * h;
   const fontSize = visuals.lyricFontSize;
-  const lineSpacing = fontSize * 1.5;
+  
+  // Custom Line Spacing support
+  const lineSpacingMult = visuals.lineSpacing !== undefined ? visuals.lineSpacing : 1.5;
+  const targetLineSpacing = fontSize * lineSpacingMult;
   
   const linesAbove = visuals.linesAbove;
   const linesBelow = visuals.linesBelow === "auto" ? 1 : visuals.linesBelow;
   
-  const startIdx = Math.max(0, activeIndex - linesAbove);
-  const endIdx = Math.min(lyrics.length - 1, activeIndex + linesBelow);
+  // Smooth Transition Scrolling LERP
+  const targetScrollY = activeIndex * targetLineSpacing;
+  const transitionEnabled = visuals.transitionEnabled !== false;
+  if (typeof window.__currentScrollY === 'undefined' || !transitionEnabled) {
+    window.__currentScrollY = targetScrollY;
+  } else {
+    const transitionSpeed = visuals.transitionSpeed !== undefined ? visuals.transitionSpeed : 0.1;
+    window.__currentScrollY += (targetScrollY - window.__currentScrollY) * transitionSpeed;
+  }
+
+  // Render extra lines buffer to avoid sudden disappearing/popping during smooth scroll
+  const startIdx = Math.max(0, activeIndex - linesAbove - 1);
+  const endIdx = Math.min(lyrics.length - 1, activeIndex + linesBelow + 1);
   
   const linesToDraw = [];
   for (let i = startIdx; i <= endIdx; i++) {
@@ -408,7 +422,7 @@ function drawLyrics(w, h, curTime, visuals) {
       index: i,
       text: lyrics[i].text,
       isActive: i === activeIndex,
-      offsetY: (i - activeIndex) * lineSpacing
+      yPos: lyricYPixel + (i * targetLineSpacing) - window.__currentScrollY
     });
   }
   
@@ -432,7 +446,7 @@ function drawLyrics(w, h, curTime, visuals) {
   
   linesToDraw.forEach(item => {
     ctx.save();
-    const lineY = lyricYPixel + item.offsetY;
+    const lineY = item.yPos;
     let textX = lyricXPixel;
     
     let scale = 1.0;
@@ -456,28 +470,31 @@ function drawLyrics(w, h, curTime, visuals) {
       ctx.textAlign = "center";
     } else if (visuals.lyricAlign === "left") {
       ctx.textAlign = "left";
-      textX = lyricXPixel - (visuals.frameWidth || 600) / 2 + 40;
+      textX = lyricXPixel - (visuals.frameWidth ? visuals.frameWidth / 2.2 : 200);
     } else if (visuals.lyricAlign === "right") {
       ctx.textAlign = "right";
-      textX = lyricXPixel + (visuals.frameWidth || 600) / 2 - 40;
+      textX = lyricXPixel + (visuals.frameWidth ? visuals.frameWidth / 2.2 : 200);
     }
-    ctx.textBaseline = "middle";
     
-    const subLines = item.text.split("\n");
+    const subLines = item.text.split("
+");
     const subLineSpacing = fontSize * 1.2;
     
     subLines.forEach((subText, subIdx) => {
       const subLineY = lineY + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
       
       const karaokeSpeedMult = visuals.karaokeSpeed !== undefined ? visuals.karaokeSpeed : 1.0;
+      const karaokeEnabled = visuals.karaokeEnabled !== false && karaokeSpeedMult > 0;
+      
       let baseClr = item.isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, 0.4);
-      if (item.isActive && karaokeSpeedMult === 0) {
+      if (item.isActive && !karaokeEnabled) {
         baseClr = visuals.colorLyricActive;
       }
       
       drawHighlightedText(ctx, subText, textX, subLineY, item.isActive ? fontSize * scale : fontSize, baseClr);
 
-      if (item.isActive && karaokeSpeedMult > 0 && lyrics[item.index].time !== null) {
+      // Sequential Karaoke calculation for multi-line lyrics
+      if (item.isActive && karaokeEnabled && lyrics[item.index].time !== null) {
         const textWidth = ctx.measureText(subText).width;
         
         const tStart = lyrics[item.index].time;
@@ -490,9 +507,14 @@ function drawLyrics(w, h, curTime, visuals) {
         }
         
         const lineDuration = tEnd - tStart;
-        const elapsed = curTime - tStart;
         
-        let progress = lineDuration > 0 ? (elapsed / lineDuration) * karaokeSpeedMult : 0;
+        // Divide total duration evenly among all sublines
+        const numSubLines = subLines.length;
+        const subDuration = lineDuration / numSubLines;
+        const subStart = tStart + subIdx * subDuration;
+        const elapsed = curTime - subStart;
+        
+        let progress = subDuration > 0 ? (elapsed / subDuration) * karaokeSpeedMult : 0;
         progress = Math.max(0, Math.min(1, progress));
         
         ctx.save();
@@ -548,7 +570,6 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
 
   // Build segments
   const segments = [];
-  let remaining = text;
   let cursor = 0;
   const fullLen = text.length;
 
@@ -560,7 +581,9 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
       if (text.startsWith(open, cursor)) {
         const endIdx = close ? text.indexOf(close, cursor + open.length) : -1;
         if (close && endIdx !== -1) {
-          segments.push({ text: text.slice(cursor, endIdx + close.length), color: rule.color });
+          // Bóc tách nội dung ở giữa (bỏ kí tự đặc biệt)
+          const content = text.slice(cursor + open.length, endIdx);
+          segments.push({ text: content, color: rule.color });
           cursor = endIdx + close.length;
           matched = true;
           break;
@@ -568,7 +591,9 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
           // Single-char delimiter: color until next whitespace
           let end = cursor + open.length;
           while (end < fullLen && text[end] !== ' ') end++;
-          segments.push({ text: text.slice(cursor, end), color: rule.color });
+          // Bóc tách nội dung (bỏ kí tự đặc biệt)
+          const content = text.slice(cursor + open.length, end);
+          segments.push({ text: content, color: rule.color });
           cursor = end;
           matched = true;
           break;
@@ -586,6 +611,7 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
         segments.push({ text: text.slice(startPlain, nextSpecial), color: baseColor });
         cursor = nextSpecial;
       } else {
+        segments.push({ text: text.slice(startPlain, startPlain + 1), color: baseColor });
         cursor++;
       }
     }
@@ -604,11 +630,14 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
 
   const savedAlign = ctx.textAlign;
   ctx.textAlign = 'left';
+
+  let currentX = drawX;
   segments.forEach(seg => {
     ctx.fillStyle = seg.color;
-    ctx.fillText(seg.text, drawX, y);
-    drawX += ctx.measureText(seg.text).width;
+    ctx.fillText(seg.text, currentX, y);
+    currentX += ctx.measureText(seg.text).width;
   });
+
   ctx.textAlign = savedAlign;
 }
 
