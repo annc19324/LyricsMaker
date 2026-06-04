@@ -462,7 +462,7 @@ function applyStateToUI() {
     colorLyricActive.parentElement.querySelector(".color-hex").innerText = visuals.colorLyricActive.toUpperCase();
     
     sliderKaraokeSpeed.value = visuals.karaokeSpeed;
-    document.getElementById("val-karaoke-speed").innerText = `${visuals.karaokeSpeed}x`;
+    document.getElementById("val-karaoke-speed").innerText = visuals.karaokeSpeed === 0 ? "Tắt" : `${visuals.karaokeSpeed}x`;
     
     sliderLyricZoom.value = visuals.lyricZoom;
     document.getElementById("val-lyric-zoom").innerText = `${visuals.lyricZoom}x`;
@@ -515,15 +515,7 @@ function applyStateToUI() {
     });
   }
 
-  // Restore active tabs
-  if (state.activeLeftTab) {
-    const leftBtn = document.querySelector(`#sidebar-left .tab-btn[data-tab="${state.activeLeftTab}"]`);
-    if (leftBtn) leftBtn.click();
-  }
-  if (state.activeRightTab) {
-    const rightBtn = document.querySelector(`#sidebar-right .tab-btn[data-tab="${state.activeRightTab}"]`);
-    if (rightBtn) rightBtn.click();
-  }
+
 
   // Sync highlight rules to canvas
   updateHighlightRules(state.highlightRules || []);
@@ -589,8 +581,15 @@ function handleTimeUpdate() {
   // Highlight currently playing lyric in timing editor
   let activePlayingIdx = -1;
   for (let i = 0; i < lyrics.length; i++) {
-    if (lyrics[i].time !== null && lyrics[i].time !== undefined && cur >= lyrics[i].time) {
-      activePlayingIdx = i;
+    const t = lyrics[i].time;
+    if (t !== null && t !== undefined) {
+      // If a non-first line has time = 0 and previous also has time = 0, it means it is not yet synchronized.
+      if (i > 0 && t === 0 && lyrics[i - 1].time === 0) {
+        continue;
+      }
+      if (cur >= t) {
+        activePlayingIdx = i;
+      }
     }
   }
   
@@ -984,7 +983,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (input.id === "slider-lyric-y") document.getElementById("val-lyric-y").innerText = `${input.value}%`;
       if (input.id === "slider-float-speed") document.getElementById("val-float-speed").innerText = `${input.value}x`;
       if (input.id === "slider-fog-intensity") document.getElementById("val-fog-intensity").innerText = `${input.value}%`;
-      if (input.id === "slider-karaoke-speed") document.getElementById("val-karaoke-speed").innerText = `${input.value}x`;
+      if (input.id === "slider-karaoke-speed") document.getElementById("val-karaoke-speed").innerText = parseFloat(input.value) === 0 ? "Tắt" : `${input.value}x`;
       if (input.id === "slider-lyric-zoom") document.getElementById("val-lyric-zoom").innerText = `${input.value}x`;
       if (input.id === "slider-lyric-glow") document.getElementById("val-lyric-glow").innerText = `${input.value}px`;
       if (input.id === "slider-frame-opacity") document.getElementById("val-frame-opacity").innerText = `${input.value}%`;
@@ -1035,10 +1034,12 @@ document.addEventListener("DOMContentLoaded", () => {
   btnPlayPause.addEventListener("click", handlePlayPause);
   btnMarkTiming.addEventListener("click", markCurrentTiming);
   
-  btnParseLyrics.addEventListener("click", () => {
-    syncLyricsFromRawText();
-    saveState();
-  });
+  if (btnParseLyrics) {
+    btnParseLyrics.addEventListener("click", () => {
+      syncLyricsFromRawText();
+      saveState();
+    });
+  }
   textareaLyricsRaw.addEventListener("change", () => {
     syncLyricsFromRawText();
     saveState();
@@ -1306,6 +1307,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // File persistence via IndexedDB
   initFileStore();
+
+  // Restore active tabs (called after all tab click listeners are bound)
+  setTimeout(() => {
+    if (state.activeLeftTab) {
+      const leftBtn = document.querySelector(`#sidebar-left .tab-btn[data-tab="${state.activeLeftTab}"]`);
+      if (leftBtn) leftBtn.click();
+    }
+    if (state.activeRightTab) {
+      const rightBtn = document.querySelector(`#sidebar-right .tab-btn[data-tab="${state.activeRightTab}"]`);
+      if (rightBtn) rightBtn.click();
+    }
+  }, 100);
 });
 
 // ── IndexedDB File Persistence ────────────────────────────────────────────

@@ -378,8 +378,14 @@ function drawLyrics(w, h, curTime, visuals) {
   
   let activeIndex = -1;
   for (let i = 0; i < lyrics.length; i++) {
-    if (lyrics[i].time !== null && curTime >= lyrics[i].time) {
-      activeIndex = i;
+    const t = lyrics[i].time;
+    if (t !== null && t !== undefined) {
+      if (i > 0 && t === 0 && lyrics[i - 1].time === 0) {
+        continue;
+      }
+      if (curTime >= t) {
+        activeIndex = i;
+      }
     }
   }
   
