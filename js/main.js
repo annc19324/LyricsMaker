@@ -1,0 +1,983 @@
+/* --- APP INITIALIZATION & EVENT BINDINGS MODULE (MAIN Entry point) --- */
+
+import { 
+  state, lyrics, syncCursorIndex, timeFormatMMSS,
+  loadSavedState, saveCurrentState, resetAllState,
+  setSyncCursorIndex, setTimeFormatMMSS, updateLyricsArray
+} from "./state.js";
+
+import {
+  audioPlayer, audioFileLoaded, defaultAudioUrl,
+  audioCtx, speakerGainNode, audioDestination,
+  initAudioContext, updateGainAndFades, generateDreamySynth, setAudioFileLoaded
+} from "./audio.js";
+
+import {
+  canvas, ctx, bgImage, mainImage, bgVideo, mainVideo,
+  bgMediaType, mainMediaType, setBgMediaType, setMainMediaType,
+  initCanvasModule, updateCanvasSize, startRenderLoop
+} from "./canvas.js";
+
+// --- Global UI references ---
+const textareaLyricsRaw = document.getElementById("textarea-lyrics-raw");
+const timingsListContainer = document.getElementById("timings-list-container");
+
+const inputSongTitle = document.getElementById("input-song-title");
+const inputSongArtist = document.getElementById("input-song-artist");
+const inputSongChannel = document.getElementById("input-song-channel");
+
+const inputAudioStart = document.getElementById("input-audio-start");
+const inputAudioEnd = document.getElementById("input-audio-end");
+const inputFadeIn = document.getElementById("input-fade-in");
+const inputFadeOut = document.getElementById("input-fade-out");
+
+const inputBgImage = document.getElementById("input-bg-image");
+const inputBgVideo = document.getElementById("input-bg-video");
+const inputMainImage = document.getElementById("input-main-image");
+const inputMainVideo = document.getElementById("input-main-video");
+
+const sliderBgBlur = document.getElementById("slider-bg-blur");
+const sliderBgOverlay = document.getElementById("slider-bg-overlay");
+const sliderMainSize = document.getElementById("slider-main-size");
+const sliderMainX = document.getElementById("slider-main-x");
+const sliderMainY = document.getElementById("slider-main-y");
+
+const selectFontFamily = document.getElementById("select-font-family");
+const sliderLyricSize = document.getElementById("slider-lyric-size");
+const sliderLyricX = document.getElementById("slider-lyric-x");
+const sliderLyricY = document.getElementById("slider-lyric-y");
+const inputLinesAbove = document.getElementById("input-lines-above");
+const inputLinesBelow = document.getElementById("input-lines-below");
+
+const toggleFloat = document.getElementById("toggle-float");
+const sliderFloatSpeed = document.getElementById("slider-float-speed");
+const sliderFogIntensity = document.getElementById("slider-fog-intensity");
+
+const colorLyricBase = document.getElementById("color-lyric-base");
+const colorLyricActive = document.getElementById("color-lyric-active");
+const sliderKaraokeSpeed = document.getElementById("slider-karaoke-speed");
+const sliderLyricZoom = document.getElementById("slider-lyric-zoom");
+const sliderLyricGlow = document.getElementById("slider-lyric-glow");
+const colorLyricGlow = document.getElementById("color-lyric-glow");
+
+const sliderFrameOpacity = document.getElementById("slider-frame-opacity");
+const sliderFrameWidth = document.getElementById("slider-frame-width");
+const sliderFrameHeight = document.getElementById("slider-frame-height");
+const colorFrameBg = document.getElementById("color-frame-bg");
+
+const btnResetDefaults = document.getElementById("btn-reset-defaults");
+const btnExportVideo = document.getElementById("btn-export-video");
+const btnMarkTiming = document.getElementById("btn-mark-timing");
+const btnPlayPause = document.getElementById("btn-play-pause");
+const btnSkipBackward = document.getElementById("btn-skip-backward");
+const btnSkipForward = document.getElementById("btn-skip-forward");
+const sliderPlaybackProgress = document.getElementById("slider-playback-progress");
+const progressBarFill = document.getElementById("progress-bar-fill");
+const sliderVolume = document.getElementById("slider-volume");
+const volumeIcon = document.getElementById("volume-icon");
+
+const timeCurrent = document.getElementById("time-current");
+const timeTotal = document.getElementById("time-total");
+
+const btnParseLyrics = document.getElementById("btn-parse-lyrics");
+const btnToggleTimeFormat = document.getElementById("btn-toggle-time-format");
+
+const modalExport = document.getElementById("modal-export");
+const btnCloseExport = document.getElementById("btn-close-export");
+const btnCloseSuccess = document.getElementById("btn-close-success");
+const btnCancelExport = document.getElementById("btn-cancel-export");
+const exportRunningView = document.getElementById("export-running-view");
+const exportSuccessView = document.getElementById("export-success-view");
+const exportProgressFill = document.getElementById("export-progress-fill");
+const exportStatusText = document.getElementById("export-status-text");
+const downloadVideoLink = document.getElementById("download-video-link");
+
+const ratioButtons = document.querySelectorAll(".ratio-btn");
+const toggleMediaBtns = document.querySelectorAll(".toggle-media-type");
+
+// Preview Zoom references
+const sliderPreviewZoom = document.getElementById("slider-preview-zoom");
+const valPreviewZoom = document.getElementById("val-preview-zoom");
+
+// Timings Action Button references
+const btnSortTimings = document.getElementById("btn-sort-timings");
+const btnClearTimings = document.getElementById("btn-clear-timings");
+
+let isProgressBarDragging = false;
+let isExporting = false;
+let mediaRecorder = null;
+let exportBlobs = [];
+
+// --- Functions ---
+
+function syncLyricsFromRawText() {
+  const blocks = parseLyricsText(textareaLyricsRaw.value);
+  const newLyrics = [];
+  
+  blocks.forEach((block, idx) => {
+    let t = null;
+    if (state.timings && state.timings[idx] !== undefined) {
+      t = state.timings[idx];
+    } else if (lyrics[idx]) {
+      t = lyrics[idx].time;
+    }
+    
+    newLyrics.push({ text: block, time: t });
+  });
+  
+  updateLyricsArray(newLyrics);
+  
+  // Update sync cursor
+  let foundCursor = false;
+  for (let i = 0; i < lyrics.length; i++) {
+    if (lyrics[i].time === null || lyrics[i].time === undefined) {
+      setSyncCursorIndex(i);
+      foundCursor = true;
+      break;
+    }
+  }
+  if (!foundCursor) {
+    setSyncCursorIndex(lyrics.length - 1 < 0 ? 0 : lyrics.length - 1);
+  }
+  
+  renderTimingsList();
+}
+
+function parseLyricsText(text) {
+  if (!text) return [];
+  const blocks = text.split(/\n\s*\n+/);
+  return blocks.map(b => b.trim()).filter(Boolean);
+}
+
+function syncTimingsListToRawText() {
+  const rawText = lyrics.map(line => line.text).join("\n\n");
+  textareaLyricsRaw.value = rawText;
+  saveState();
+}
+
+function renderTimingsList() {
+  timingsListContainer.innerHTML = "";
+  
+  if (lyrics.length === 0) {
+    timingsListContainer.innerHTML = `
+      <div class="empty-timings-state">
+        <i class="fa-solid fa-hourglass-empty"></i>
+        <p>Chưa có dữ liệu lyrics. Nhấn tab <strong>Nhập Lyrics</strong> để bắt đầu.</p>
+      </div>`;
+    return;
+  }
+  
+  lyrics.forEach((line, idx) => {
+    const item = document.createElement("div");
+    item.className = `timing-row-new ${idx === syncCursorIndex ? 'active' : ''}`;
+    item.setAttribute("data-index", idx);
+    
+    let displayTime = "0";
+    if (line.time !== null && line.time !== undefined) {
+      displayTime = line.time === 0 ? "0" : line.time.toFixed(5);
+    }
+    
+    item.innerHTML = `
+      <span class="timing-row-index">${idx + 1}</span>
+      <span class="timing-row-text" title="Click để chọn làm câu hát hiện tại">${line.text}</span>
+      <input type="text" class="timing-row-input" value="${displayTime}">
+    `;
+    
+    // Click on text to set active sync cursor (active line)
+    const textSpan = item.querySelector(".timing-row-text");
+    textSpan.addEventListener("click", () => {
+      setSyncCursorIndex(idx);
+      renderTimingsList();
+      
+      // Also jump audio player to this time if set
+      if (line.time !== null && line.time > 0) {
+        initAudioContext();
+        audioPlayer.currentTime = line.time;
+      }
+    });
+    
+    // Change timestamp value
+    const timeInput = item.querySelector(".timing-row-input");
+    timeInput.addEventListener("change", (e) => {
+      const val = e.target.value.trim().replace(",", "."); // Support commas
+      if (val === "" || isNaN(parseFloat(val))) {
+        lyrics[idx].time = 0;
+      } else {
+        lyrics[idx].time = parseFloat(val);
+      }
+      syncTimingsListToRawText();
+      renderTimingsList();
+    });
+    
+    timingsListContainer.appendChild(item);
+  });
+}
+
+function parseTimeStr(str) {
+  if (!str) return 0;
+  str = str.toString().trim();
+  if (str.includes(":")) {
+    const parts = str.split(":");
+    const m = parseFloat(parts[0]) || 0;
+    const s = parseFloat(parts[1]) || 0;
+    return m * 60 + s;
+  }
+  return parseFloat(str) || 0;
+}
+
+function formatTime(seconds, showCentiseconds = false) {
+  if (seconds === null || isNaN(seconds) || seconds === undefined) return "--:--";
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  if (showCentiseconds) {
+    const c = Math.floor((seconds % 1) * 100);
+    return `${m}:${s.toString().padStart(2, "0")}.${c.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// --- Toast Notification ---
+const toastIcons = {
+  success: 'fa-circle-check',
+  info: 'fa-circle-info',
+  warning: 'fa-triangle-exclamation',
+  error: 'fa-circle-xmark'
+};
+
+function showToast(message, type = 'info', duration = 3000) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <i class="toast-icon fa-solid ${toastIcons[type] || toastIcons.info}"></i>
+    <span>${message}</span>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-exit');
+    setTimeout(() => toast.remove(), 350);
+  }, duration);
+}
+
+// State Synchronization
+function saveState() {
+  const uiValues = {
+    songTitle: inputSongTitle.value,
+    songArtist: inputSongArtist.value,
+    songChannel: inputSongChannel.value,
+    rawLyrics: textareaLyricsRaw.value,
+    audioStart: parseTimeStr(inputAudioStart.value),
+    audioEnd: inputAudioEnd.value.trim() === "auto" ? "auto" : parseTimeStr(inputAudioEnd.value),
+    fadeIn: parseFloat(inputFadeIn.value) || 0,
+    fadeOut: parseFloat(inputFadeOut.value) || 0,
+    volume: parseInt(sliderVolume.value) || 80,
+    previewZoom: parseInt(sliderPreviewZoom.value) || 100,
+    visuals: {
+      bgBlur: parseInt(sliderBgBlur.value),
+      bgOverlayOpacity: parseInt(sliderBgOverlay.value),
+      mainShape: document.getElementById("btn-shape-circle").classList.contains("active") ? "circle" : "rect",
+      mainSize: parseInt(sliderMainSize.value),
+      mainX: parseInt(sliderMainX.value),
+      mainY: parseInt(sliderMainY.value),
+      lyricFontFamily: selectFontFamily.value,
+      lyricFontSize: parseInt(sliderLyricSize.value),
+      lyricAlign: document.querySelector(".align-btn.active")?.getAttribute("data-align") || "center",
+      lyricX: parseInt(sliderLyricX.value),
+      lyricY: parseInt(sliderLyricY.value),
+      linesAbove: parseInt(inputLinesAbove.value) || 0,
+      linesBelow: inputLinesBelow.value.trim() === "auto" ? "auto" : (parseInt(inputLinesBelow.value) || 0),
+      floatEnabled: toggleFloat.checked,
+      floatSpeed: parseFloat(sliderFloatSpeed.value) || 1,
+      fogIntensity: parseInt(sliderFogIntensity.value) || 0,
+      colorLyricBase: colorLyricBase.value,
+      colorLyricActive: colorLyricActive.value,
+      karaokeSpeed: parseFloat(sliderKaraokeSpeed.value) || 1.0,
+      lyricZoom: parseFloat(sliderLyricZoom.value) || 1.1,
+      lyricGlow: parseInt(sliderLyricGlow.value) || 0,
+      colorLyricGlow: colorLyricGlow.value,
+      frameOpacity: parseInt(sliderFrameOpacity.value) || 0,
+      frameWidth: parseInt(sliderFrameWidth.value) || 600,
+      frameHeight: parseInt(sliderFrameHeight.value) || 150,
+      colorFrameBg: colorFrameBg.value
+    }
+  };
+  
+  saveCurrentState(state.activeRatio, lyrics, uiValues);
+}
+
+function applyStateToUI() {
+  // Bind UI inputs from state
+  inputSongTitle.value = state.songTitle;
+  inputSongArtist.value = state.songArtist;
+  inputSongChannel.value = state.songChannel;
+  textareaLyricsRaw.value = state.rawLyrics;
+  
+  inputAudioStart.value = state.audioStart;
+  inputAudioEnd.value = state.audioEnd;
+  inputFadeIn.value = state.fadeIn;
+  inputFadeOut.value = state.fadeOut;
+  
+  sliderVolume.value = state.volume;
+  audioPlayer.volume = state.volume / 100;
+  
+  sliderPreviewZoom.value = state.previewZoom || 100;
+  valPreviewZoom.innerText = `${state.previewZoom || 100}%`;
+  
+  // Set aspect ratio buttons styling
+  ratioButtons.forEach(btn => {
+    if (btn.getAttribute("data-ratio") === state.activeRatio) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+  
+  // Apply visual controls for current active ratio
+  const visuals = state.visuals[state.activeRatio];
+  if (visuals) {
+    sliderBgBlur.value = visuals.bgBlur;
+    document.getElementById("val-bg-blur").innerText = `${visuals.bgBlur}px`;
+    
+    sliderBgOverlay.value = visuals.bgOverlayOpacity;
+    document.getElementById("val-bg-overlay").innerText = `${visuals.bgOverlayOpacity}%`;
+    
+    if (visuals.mainShape === "circle") {
+      document.getElementById("btn-shape-circle").classList.add("active");
+      document.getElementById("btn-shape-rect").classList.remove("active");
+    } else {
+      document.getElementById("btn-shape-circle").classList.remove("active");
+      document.getElementById("btn-shape-rect").classList.add("active");
+    }
+    
+    sliderMainSize.value = visuals.mainSize;
+    document.getElementById("val-main-size").innerText = `${visuals.mainSize}px`;
+    
+    sliderMainX.value = visuals.mainX;
+    document.getElementById("val-main-x").innerText = `${visuals.mainX}%`;
+    
+    sliderMainY.value = visuals.mainY;
+    document.getElementById("val-main-y").innerText = `${visuals.mainY}%`;
+    
+    selectFontFamily.value = visuals.lyricFontFamily;
+    sliderLyricSize.value = visuals.lyricFontSize;
+    document.getElementById("val-lyric-size").innerText = `${visuals.lyricFontSize}px`;
+    
+    document.querySelectorAll(".align-btn").forEach(btn => {
+      if (btn.getAttribute("data-align") === visuals.lyricAlign) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+    
+    sliderLyricX.value = visuals.lyricX;
+    document.getElementById("val-lyric-x").innerText = `${visuals.lyricX}%`;
+    
+    sliderLyricY.value = visuals.lyricY;
+    document.getElementById("val-lyric-y").innerText = `${visuals.lyricY}%`;
+    
+    inputLinesAbove.value = visuals.linesAbove;
+    inputLinesBelow.value = visuals.linesBelow;
+    
+    toggleFloat.checked = visuals.floatEnabled;
+    sliderFloatSpeed.value = visuals.floatSpeed;
+    document.getElementById("val-float-speed").innerText = `${visuals.floatSpeed}x`;
+    
+    sliderFogIntensity.value = visuals.fogIntensity;
+    document.getElementById("val-fog-intensity").innerText = `${visuals.fogIntensity}%`;
+    
+    colorLyricBase.value = visuals.colorLyricBase;
+    colorLyricBase.parentElement.querySelector(".color-hex").innerText = visuals.colorLyricBase.toUpperCase();
+    
+    colorLyricActive.value = visuals.colorLyricActive;
+    colorLyricActive.parentElement.querySelector(".color-hex").innerText = visuals.colorLyricActive.toUpperCase();
+    
+    sliderKaraokeSpeed.value = visuals.karaokeSpeed;
+    document.getElementById("val-karaoke-speed").innerText = `${visuals.karaokeSpeed}x`;
+    
+    sliderLyricZoom.value = visuals.lyricZoom;
+    document.getElementById("val-lyric-zoom").innerText = `${visuals.lyricZoom}x`;
+    
+    sliderLyricGlow.value = visuals.lyricGlow;
+    document.getElementById("val-lyric-glow").innerText = `${visuals.lyricGlow}px`;
+    
+    colorLyricGlow.value = visuals.colorLyricGlow;
+    colorLyricGlow.parentElement.querySelector(".color-hex").innerText = visuals.colorLyricGlow.toUpperCase();
+    
+    sliderFrameOpacity.value = visuals.frameOpacity;
+    document.getElementById("val-frame-opacity").innerText = `${visuals.frameOpacity}%`;
+    
+    sliderFrameWidth.value = visuals.frameWidth;
+    document.getElementById("val-frame-width").innerText = `${visuals.frameWidth}px`;
+    
+    sliderFrameHeight.value = visuals.frameHeight;
+    document.getElementById("val-frame-height").innerText = `${visuals.frameHeight}px`;
+    
+    colorFrameBg.value = visuals.colorFrameBg;
+    colorFrameBg.parentElement.querySelector(".color-hex").innerText = visuals.colorFrameBg.toUpperCase();
+  }
+  
+  updateCanvasSize();
+}
+
+function handlePlayPause() {
+  initAudioContext();
+  
+  if (audioPlayer.paused) {
+    if (audioCtx && audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+    audioPlayer.play();
+    btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
+    btnPlayPause.classList.add("active");
+    
+    if (bgVideo && bgMediaType === "video") bgVideo.play();
+    if (mainVideo && mainMediaType === "video") mainVideo.play();
+  } else {
+    audioPlayer.pause();
+    btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+    btnPlayPause.classList.remove("active");
+    
+    if (bgVideo) bgVideo.pause();
+    if (mainVideo) mainVideo.pause();
+  }
+}
+
+function handleTimeUpdate() {
+  if (isExporting) return; // Managed by export runner
+  
+  const cur = audioPlayer.currentTime;
+  const dur = audioPlayer.duration || 60;
+  
+  const start = parseFloat(state.audioStart) || 0;
+  const end = state.audioEnd === "auto" ? dur : parseFloat(state.audioEnd);
+  
+  if (cur < start) {
+    audioPlayer.currentTime = start;
+  }
+  if (cur >= end) {
+    audioPlayer.pause();
+    audioPlayer.currentTime = start;
+    btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+    btnPlayPause.classList.remove("active");
+    if (bgVideo) bgVideo.pause();
+    if (mainVideo) mainVideo.pause();
+  }
+  
+  timeCurrent.innerText = formatTime(audioPlayer.currentTime);
+  timeTotal.innerText = formatTime(dur);
+  
+  if (!isProgressBarDragging) {
+    sliderPlaybackProgress.value = (cur / dur) * 100;
+    progressBarFill.style.width = `${(cur / dur) * 100}%`;
+  }
+
+  // Highlight currently playing lyric in timing editor
+  let activePlayingIdx = -1;
+  for (let i = 0; i < lyrics.length; i++) {
+    if (lyrics[i].time !== null && lyrics[i].time !== undefined && cur >= lyrics[i].time) {
+      activePlayingIdx = i;
+    }
+  }
+  
+  const rows = timingsListContainer.querySelectorAll(".timing-row-new");
+  rows.forEach((row, idx) => {
+    if (idx === activePlayingIdx) {
+      if (!row.classList.contains("playing")) {
+        row.classList.add("playing");
+        row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    } else {
+      row.classList.remove("playing");
+    }
+  });
+}
+
+function markCurrentTiming() {
+  initAudioContext();
+  const curTime = audioPlayer.currentTime;
+  
+  if (lyrics.length === 0) return;
+  
+  lyrics[syncCursorIndex].time = curTime;
+  
+  if (syncCursorIndex < lyrics.length - 1) {
+    setSyncCursorIndex(syncCursorIndex + 1);
+    renderTimingsList();
+    const nextItem = timingsListContainer.querySelector(`.timing-row-new[data-index="${syncCursorIndex}"]`);
+    if (nextItem) nextItem.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } else {
+    renderTimingsList();
+  }
+  
+  syncTimingsListToRawText();
+}
+
+// File Upload Handler
+function setupFileZone(zoneId, fileInputId, fileInfoId, mediaTypeKey) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(fileInputId);
+  const info = document.getElementById(fileInfoId);
+  
+  zone.addEventListener("click", () => input.click());
+  
+  zone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    zone.style.borderColor = "var(--color-primary)";
+    zone.style.backgroundColor = "rgba(99,102,241,0.06)";
+  });
+  
+  zone.addEventListener("dragleave", () => {
+    zone.style.borderColor = "var(--color-border)";
+    zone.style.backgroundColor = "transparent";
+  });
+  
+  zone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    zone.style.borderColor = "var(--color-border)";
+    zone.style.backgroundColor = "transparent";
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      input.files = e.dataTransfer.files;
+      handleFile(input.files[0]);
+    }
+  });
+  
+  input.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  });
+  
+  function handleFile(file) {
+    info.innerText = file.name;
+    const url = URL.createObjectURL(file);
+    
+    if (mediaTypeKey === "audio") {
+      setAudioFileLoaded(true);
+      audioPlayer.src = url;
+      audioPlayer.load();
+      audioPlayer.currentTime = 0;
+    } else if (mediaTypeKey === "bg_image") {
+      bgImage.src = url;
+    } else if (mediaTypeKey === "bg_video") {
+      bgVideo.src = url;
+      bgVideo.load();
+      bgVideo.play().catch(e => console.log(e));
+    } else if (mediaTypeKey === "main_image") {
+      mainImage.src = url;
+    } else if (mediaTypeKey === "main_video") {
+      mainVideo.src = url;
+      mainVideo.load();
+      mainVideo.play().catch(e => console.log(e));
+    }
+  }
+}
+
+// Media export WebM
+function startVideoExport() {
+  initAudioContext();
+  
+  if (lyrics.length === 0) {
+    alert("Vui lòng nhập và phân tích lyrics trước!");
+    return;
+  }
+  
+  isExporting = true;
+  exportBlobs = [];
+  
+  modalExport.classList.remove("hidden");
+  exportRunningView.classList.remove("hidden");
+  exportSuccessView.classList.add("hidden");
+  
+  audioPlayer.pause();
+  btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+  btnPlayPause.classList.remove("active");
+  
+  const trimStart = parseFloat(state.audioStart) || 0;
+  const trimEnd = state.audioEnd === "auto" ? (audioPlayer.duration || 60) : parseFloat(state.audioEnd);
+  const totalDuration = trimEnd - trimStart;
+  
+  audioPlayer.currentTime = trimStart;
+  
+  // Mute physical speakers
+  if (speakerGainNode) {
+    speakerGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+  }
+  
+  const canvasStream = canvas.captureStream(30);
+  const audioStream = audioDestination.stream;
+  
+  const combinedStream = new MediaStream();
+  canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
+  audioStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
+  
+  let options = { mimeType: "video/webm;codecs=vp9,opus" };
+  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    options = { mimeType: "video/webm;codecs=vp8,opus" };
+  }
+  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+    options = { mimeType: "video/webm" };
+  }
+  
+  try {
+    mediaRecorder = new MediaRecorder(combinedStream, options);
+  } catch (e) {
+    console.error(e);
+    alert("MediaRecorder not supported.");
+    isExporting = false;
+    modalExport.classList.add("hidden");
+    return;
+  }
+  
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data && event.data.size > 0) exportBlobs.push(event.data);
+  };
+  
+  mediaRecorder.onstop = () => {
+    if (speakerGainNode) speakerGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+    
+    const blob = new Blob(exportBlobs, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+    downloadVideoLink.href = url;
+    downloadVideoLink.download = `lyrics-maker-${state.songTitle.toLowerCase().replace(/[^a-z0-9]/g, "-")}.webm`;
+    
+    exportRunningView.classList.add("hidden");
+    exportSuccessView.classList.remove("hidden");
+    isExporting = false;
+  };
+  
+  if (bgVideo && bgMediaType === "video") {
+    bgVideo.currentTime = 0;
+    bgVideo.play();
+  }
+  if (mainVideo && mainMediaType === "video") {
+    mainVideo.currentTime = 0;
+    mainVideo.play();
+  }
+  
+  mediaRecorder.start(100);
+  audioPlayer.play();
+  
+  audioPlayer.ontimeupdate = () => {
+    if (!isExporting) {
+      audioPlayer.ontimeupdate = handleTimeUpdate;
+      handleTimeUpdate();
+      return;
+    }
+    
+    const curr = audioPlayer.currentTime;
+    if (curr >= trimEnd || audioPlayer.ended) {
+      audioPlayer.pause();
+      mediaRecorder.stop();
+      if (bgVideo) bgVideo.pause();
+      if (mainVideo) mainVideo.pause();
+      audioPlayer.ontimeupdate = handleTimeUpdate;
+      return;
+    }
+    
+    const elapsed = curr - trimStart;
+    const progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
+    exportProgressFill.style.width = `${progress.toFixed(1)}%`;
+    exportProgressFill.innerText = `${Math.floor(progress)}%`;
+    exportStatusText.innerText = `Đang ghi hình và âm thanh: ${elapsed.toFixed(1)}s / ${totalDuration.toFixed(1)}s`;
+  };
+}
+
+function cancelVideoExport() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+  audioPlayer.pause();
+  if (speakerGainNode) speakerGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+  audioPlayer.ontimeupdate = handleTimeUpdate;
+  isExporting = false;
+  modalExport.classList.add("hidden");
+}
+
+// --- DOM Initialization ---
+
+document.addEventListener("DOMContentLoaded", () => {
+  initCanvasModule();
+  generateDreamySynth();
+  
+  loadSavedState();
+  applyStateToUI();
+  
+  // Re-parse timings
+  syncLyricsFromRawText();
+  
+  // Run loop
+  startRenderLoop();
+  
+  // Input binders
+  const inputs = [
+    inputSongTitle, inputSongArtist, inputSongChannel,
+    inputAudioStart, inputAudioEnd, inputFadeIn, inputFadeOut,
+    sliderBgBlur, sliderBgOverlay, sliderMainSize, sliderMainX, sliderMainY,
+    selectFontFamily, sliderLyricSize, sliderLyricX, sliderLyricY,
+    inputLinesAbove, inputLinesBelow, toggleFloat, sliderFloatSpeed, sliderFogIntensity,
+    colorLyricBase, colorLyricActive, sliderKaraokeSpeed, sliderLyricZoom, sliderLyricGlow, colorLyricGlow,
+    sliderFrameOpacity, sliderFrameWidth, sliderFrameHeight, colorFrameBg
+  ];
+  
+  inputs.forEach(input => {
+    input.addEventListener("input", () => {
+      // Numerical label updates
+      if (input.id === "slider-bg-blur") document.getElementById("val-bg-blur").innerText = `${input.value}px`;
+      if (input.id === "slider-bg-overlay") document.getElementById("val-bg-overlay").innerText = `${input.value}%`;
+      if (input.id === "slider-main-size") document.getElementById("val-main-size").innerText = `${input.value}px`;
+      if (input.id === "slider-main-x") document.getElementById("val-main-x").innerText = `${input.value}%`;
+      if (input.id === "slider-main-y") document.getElementById("val-main-y").innerText = `${input.value}%`;
+      if (input.id === "slider-lyric-size") document.getElementById("val-lyric-size").innerText = `${input.value}px`;
+      if (input.id === "slider-lyric-x") document.getElementById("val-lyric-x").innerText = `${input.value}%`;
+      if (input.id === "slider-lyric-y") document.getElementById("val-lyric-y").innerText = `${input.value}%`;
+      if (input.id === "slider-float-speed") document.getElementById("val-float-speed").innerText = `${input.value}x`;
+      if (input.id === "slider-fog-intensity") document.getElementById("val-fog-intensity").innerText = `${input.value}%`;
+      if (input.id === "slider-karaoke-speed") document.getElementById("val-karaoke-speed").innerText = `${input.value}x`;
+      if (input.id === "slider-lyric-zoom") document.getElementById("val-lyric-zoom").innerText = `${input.value}x`;
+      if (input.id === "slider-lyric-glow") document.getElementById("val-lyric-glow").innerText = `${input.value}px`;
+      if (input.id === "slider-frame-opacity") document.getElementById("val-frame-opacity").innerText = `${input.value}%`;
+      if (input.id === "slider-frame-width") document.getElementById("val-frame-width").innerText = `${input.value}px`;
+      if (input.id === "slider-frame-height") document.getElementById("val-frame-height").innerText = `${input.value}px`;
+      
+      if (input.type === "color") {
+        input.parentElement.querySelector(".color-hex").innerText = input.value.toUpperCase();
+      }
+      
+      saveState();
+    });
+  });
+  
+  // Align select buttons
+  document.querySelectorAll(".align-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".align-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      saveState();
+    });
+  });
+  
+  // Preview Zoom slider bindings
+  sliderPreviewZoom.addEventListener("input", (e) => {
+    valPreviewZoom.innerText = `${e.target.value}%`;
+    saveState();
+    updateCanvasSize();
+  });
+  
+  // Shape buttons
+  document.getElementById("btn-shape-circle").addEventListener("click", () => {
+    document.getElementById("btn-shape-circle").classList.add("active");
+    document.getElementById("btn-shape-rect").classList.remove("active");
+    saveState();
+  });
+  document.getElementById("btn-shape-rect").addEventListener("click", () => {
+    document.getElementById("btn-shape-rect").classList.add("active");
+    document.getElementById("btn-shape-circle").classList.remove("active");
+    saveState();
+  });
+  
+  // Playback triggers
+  audioPlayer.ontimeupdate = handleTimeUpdate;
+  audioPlayer.addEventListener("loadedmetadata", () => {
+    timeTotal.innerText = formatTime(audioPlayer.duration);
+  });
+  btnPlayPause.addEventListener("click", handlePlayPause);
+  btnMarkTiming.addEventListener("click", markCurrentTiming);
+  
+  btnParseLyrics.addEventListener("click", () => {
+    syncLyricsFromRawText();
+    saveState();
+  });
+  textareaLyricsRaw.addEventListener("change", () => {
+    syncLyricsFromRawText();
+    saveState();
+  });
+  
+  btnToggleTimeFormat.addEventListener("click", () => {
+    setTimeFormatMMSS(!timeFormatMMSS);
+    btnToggleTimeFormat.querySelector("span").innerText = timeFormatMMSS ? "Dạng 0:00" : "Dạng 161.3s";
+    renderTimingsList();
+  });
+  
+  btnResetDefaults.addEventListener("click", () => {
+    if (confirm("Khôi phục toàn bộ mặc định?")) {
+      resetAllState();
+      setAudioFileLoaded(false);
+      audioPlayer.src = defaultAudioUrl;
+      audioPlayer.load();
+      document.getElementById("audio-file-info").innerText = "Đang dùng nhạc demo mặc định";
+      inputAudioStart.value = 0;
+      inputAudioEnd.value = "auto";
+      loadSavedState();
+      applyStateToUI();
+      syncLyricsFromRawText();
+    }
+  });
+  
+  btnSortTimings.addEventListener("click", () => {
+    lyrics.sort((a, b) => {
+      const t1 = (a.time === null || a.time === undefined || a.time === 0) ? 999999 : a.time;
+      const t2 = (b.time === null || b.time === undefined || b.time === 0) ? 999999 : b.time;
+      return t1 - t2;
+    });
+    setSyncCursorIndex(0);
+    syncTimingsListToRawText();
+    renderTimingsList();
+  });
+  
+  btnClearTimings.addEventListener("click", () => {
+    lyrics.forEach(line => {
+      line.time = 0;
+    });
+    setSyncCursorIndex(0);
+    syncTimingsListToRawText();
+    renderTimingsList();
+
+    // Seek to audioStart and continue playing
+    const startTime = parseFloat(state.audioStart) || 0;
+    initAudioContext();
+    audioPlayer.currentTime = startTime;
+    if (audioPlayer.paused) {
+      audioCtx && audioCtx.state === 'suspended' && audioCtx.resume();
+      audioPlayer.play();
+      btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
+      btnPlayPause.classList.add('active');
+      if (bgVideo && bgMediaType === 'video') bgVideo.play();
+      if (mainVideo && mainMediaType === 'video') mainVideo.play();
+    }
+
+    showToast('Đã xóa tất cả mốc thời gian — Đang phát lại từ đầu', 'warning');
+  });
+
+  btnExportVideo.addEventListener("click", startVideoExport);
+  btnCloseExport.addEventListener("click", () => modalExport.classList.add("hidden"));
+  btnCancelExport.addEventListener("click", cancelVideoExport);
+  btnCloseSuccess.addEventListener("click", () => modalExport.classList.add("hidden"));
+  
+  // Sidebar tabs switcher
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const parent = btn.parentElement;
+      const contentPanel = parent.nextElementSibling;
+      const targetTab = btn.getAttribute("data-tab");
+      
+      parent.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      contentPanel.querySelectorAll(".tab-panel").forEach(panel => {
+        if (panel.id === targetTab) {
+          panel.classList.add("active");
+        } else {
+          panel.classList.remove("active");
+        }
+      });
+    });
+  });
+  
+  // Aspect ratio switcher
+  ratioButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      saveState();
+      const ratio = btn.getAttribute("data-ratio");
+      state.activeRatio = ratio;
+      
+      ratioButtons.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      applyStateToUI();
+      saveState();
+    });
+  });
+  
+  // Media Type image vs video toggles
+  toggleMediaBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-target");
+      const type = btn.getAttribute("data-type");
+      
+      const section = btn.parentElement.parentElement;
+      section.querySelectorAll(`.toggle-media-type[data-target="${target}"]`).forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      if (target === "bg") {
+        setBgMediaType(type);
+        document.getElementById("upload-bg-image-zone").style.display = type === "image" ? "flex" : "none";
+        document.getElementById("upload-bg-video-zone").style.display = type === "video" ? "flex" : "none";
+      } else {
+        setMainMediaType(type);
+        document.getElementById("upload-main-image-zone").style.display = type === "image" ? "flex" : "none";
+        document.getElementById("upload-main-video-zone").style.display = type === "video" ? "flex" : "none";
+      }
+    });
+  });
+  
+  // File upload dropzones
+  setupFileZone("upload-audio-zone", "input-audio-file", "audio-file-info", "audio");
+  setupFileZone("upload-bg-image-zone", "input-bg-image", "bg-image-info", "bg_image");
+  setupFileZone("upload-bg-video-zone", "input-bg-video", "bg-video-info", "bg_video");
+  setupFileZone("upload-main-image-zone", "input-main-image", "main-image-info", "main_image");
+  setupFileZone("upload-main-video-zone", "input-main-video", "main-video-info", "main_video");
+  
+  window.addEventListener("resize", updateCanvasSize);
+  
+  // Progress Bar Dragging
+  sliderPlaybackProgress.addEventListener("input", (e) => {
+    isProgressBarDragging = true;
+    const percent = parseFloat(e.target.value);
+    progressBarFill.style.width = `${percent}%`;
+    const dur = audioPlayer.duration || 60;
+    timeCurrent.innerText = formatTime((percent / 100) * dur);
+  });
+
+  sliderPlaybackProgress.addEventListener("change", (e) => {
+    isProgressBarDragging = false;
+    const percent = parseFloat(e.target.value);
+    const dur = audioPlayer.duration || 60;
+    audioPlayer.currentTime = (percent / 100) * dur;
+  });
+  
+  // Volume Slider
+  sliderVolume.addEventListener("input", (e) => {
+    const vol = parseInt(e.target.value);
+    state.volume = vol;
+    audioPlayer.volume = vol / 100;
+    
+    if (vol === 0) {
+      volumeIcon.className = "fa-solid fa-volume-xmark";
+    } else if (vol < 40) {
+      volumeIcon.className = "fa-solid fa-volume-off";
+    } else if (vol < 80) {
+      volumeIcon.className = "fa-solid fa-volume-low";
+    } else {
+      volumeIcon.className = "fa-solid fa-volume-high";
+    }
+    saveState();
+  });
+  
+  // Hotkeys Listener
+  window.addEventListener("keydown", (e) => {
+    const isTyping = document.activeElement.tagName === "INPUT" || 
+                     document.activeElement.tagName === "TEXTAREA" ||
+                     document.activeElement.tagName === "SELECT";
+                     
+    if (isTyping) return;
+    
+    if (e.code === "Space") {
+      e.preventDefault();
+      handlePlayPause();
+    }
+    
+    if (e.code === "Enter") {
+      e.preventDefault();
+      markCurrentTiming();
+    }
+  });
+  
+  // Skip buttons
+  btnSkipBackward.addEventListener("click", () => {
+    audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 5);
+  });
+  btnSkipForward.addEventListener("click", () => {
+    audioPlayer.currentTime = Math.min(audioPlayer.duration || 60, audioPlayer.currentTime + 5);
+  });
+});

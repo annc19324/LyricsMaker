@@ -1,0 +1,497 @@
+/* --- CANVAS & RENDERING MODULE --- */
+
+import { state, lyrics } from "./state.js";
+import { audioPlayer, updateGainAndFades } from "./audio.js";
+
+export let canvas = null;
+export let ctx = null;
+let animationFrameId = null;
+
+// Media Sources (shared state)
+export let bgMediaType = "image";
+export let mainMediaType = "image";
+export const bgImage = new Image();
+export const mainImage = new Image();
+
+export const bgVideo = document.createElement("video");
+bgVideo.muted = true;
+bgVideo.loop = true;
+bgVideo.playsInline = true;
+bgVideo.autoplay = true;
+
+export const mainVideo = document.createElement("video");
+mainVideo.muted = true;
+mainVideo.loop = true;
+mainVideo.playsInline = true;
+mainVideo.autoplay = true;
+
+// Fog particle list
+const fogParticles = [];
+
+export function setBgMediaType(val) {
+  bgMediaType = val;
+}
+
+export function setMainMediaType(val) {
+  mainMediaType = val;
+}
+
+export function initCanvasModule() {
+  canvas = document.getElementById("preview-canvas");
+  ctx = canvas.getContext("2d");
+  initFogParticles();
+}
+
+function initFogParticles() {
+  fogParticles.length = 0;
+  for (let i = 0; i < 20; i++) {
+    fogParticles.push({
+      x: Math.random() * 120 - 10,
+      y: Math.random() * 120 - 10,
+      r: 80 + Math.random() * 150,
+      dx: 0.02 + Math.random() * 0.05,
+      dy: (Math.random() - 0.5) * 0.02,
+      opacity: 0.05 + Math.random() * 0.15
+    });
+  }
+}
+
+export function updateCanvasSize() {
+  if (!canvas) return;
+  
+  const activeRatio = state.activeRatio;
+  
+  // Render resolution
+  if (activeRatio === "16:9") {
+    canvas.width = 1280;
+    canvas.height = 720;
+    document.getElementById("aspect-ratio-box").style.aspectRatio = "16/9";
+  } else if (activeRatio === "9:16") {
+    canvas.width = 720;
+    canvas.height = 1280;
+    document.getElementById("aspect-ratio-box").style.aspectRatio = "9/16";
+  } else if (activeRatio === "1:1") {
+    canvas.width = 720;
+    canvas.height = 720;
+    document.getElementById("aspect-ratio-box").style.aspectRatio = "1/1";
+  }
+  
+  // Size calculations
+  const aspectRatioBox = document.getElementById("aspect-ratio-box");
+  const parentWidth = aspectRatioBox.parentElement.clientWidth;
+  const parentHeight = aspectRatioBox.parentElement.clientHeight;
+  
+  let boxWidth = parentWidth;
+  let boxHeight = parentHeight;
+  
+  const [wRatio, hRatio] = activeRatio.split(":").map(Number);
+  const ratio = wRatio / hRatio;
+  
+  if (parentWidth / parentHeight > ratio) {
+    boxWidth = parentHeight * ratio;
+  } else {
+    boxHeight = parentWidth / ratio;
+  }
+  
+  // Apply preview zoom (default is 100%)
+  const zoomFactor = (state.previewZoom || 100) / 100;
+  
+  // Constrain to not overflow container too aggressively by default, 
+  // but allow sizing dynamically
+  aspectRatioBox.style.width = `${boxWidth * zoomFactor}px`;
+  aspectRatioBox.style.height = `${boxHeight * zoomFactor}px`;
+}
+
+export function startRenderLoop() {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
+  
+  function tick() {
+    renderCanvas();
+    updateGainAndFades();
+    animationFrameId = requestAnimationFrame(tick);
+  }
+  
+  tick();
+}
+
+function renderCanvas() {
+  if (!canvas || !ctx) return;
+  
+  const w = canvas.width;
+  const h = canvas.height;
+  
+  // Reset
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, w, h);
+  
+  const curTime = audioPlayer.currentTime;
+  const visuals = state.visuals[state.activeRatio];
+  if (!visuals) return;
+  
+  // 1. Draw Background
+  ctx.save();
+  let bgLoaded = false;
+  
+  if (bgMediaType === "image" && bgImage.src) {
+    bgLoaded = true;
+    if (visuals.bgBlur > 0) {
+      ctx.filter = `blur(${visuals.bgBlur}px)`;
+      const b = visuals.bgBlur * 2;
+      ctx.drawImage(bgImage, -b, -b, w + b * 2, h + b * 2);
+      ctx.filter = "none";
+    } else {
+      ctx.drawImage(bgImage, 0, 0, w, h);
+    }
+  } else if (bgMediaType === "video" && bgVideo.src && !bgVideo.paused && bgVideo.readyState >= 2) {
+    bgLoaded = true;
+    if (visuals.bgBlur > 0) {
+      ctx.filter = `blur(${visuals.bgBlur}px)`;
+      const b = visuals.bgBlur * 2;
+      ctx.drawImage(bgVideo, -b, -b, w + b * 2, h + b * 2);
+      ctx.filter = "none";
+    } else {
+      ctx.drawImage(bgVideo, 0, 0, w, h);
+    }
+  }
+  
+  if (!bgLoaded) {
+    const radialGrad = ctx.createRadialGradient(
+      w / 2, h / 2, 50,
+      w / 2, h / 2, Math.max(w, h) * 0.8
+    );
+    radialGrad.addColorStop(0, "#1c1836");
+    radialGrad.addColorStop(1, "#07050d");
+    ctx.fillStyle = radialGrad;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.restore();
+  
+  // 2. Draw Background Overlay Opacity (Dark overlay)
+  if (visuals.bgOverlayOpacity > 0) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${visuals.bgOverlayOpacity / 100})`;
+    ctx.fillRect(0, 0, w, h);
+  }
+  
+  // 3. Draw Song Info
+  ctx.save();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  if (state.activeRatio === "16:9") {
+    ctx.textAlign = "left";
+    ctx.font = "bold 20px Outfit";
+    ctx.fillText(state.songTitle || "", 40, 50);
+    ctx.font = "normal 14px Outfit";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.fillText(`${state.songArtist || ""} • ${state.songChannel || ""}`, 40, 75);
+  } else {
+    ctx.textAlign = "center";
+    ctx.font = "bold 22px Outfit";
+    ctx.fillText(state.songTitle || "", w / 2, 60);
+    ctx.font = "normal 15px Outfit";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.fillText(`${state.songArtist || ""} • ${state.songChannel || ""}`, w / 2, 90);
+  }
+  ctx.restore();
+  
+  // 4. Draw Main Media
+  ctx.save();
+  const mainXPixel = (visuals.mainX / 100) * w;
+  let mainYPixel = (visuals.mainY / 100) * h;
+  const size = visuals.mainSize;
+  
+  // Float Animation
+  if (visuals.floatEnabled) {
+    const floatOffset = Math.sin(Date.now() * 0.002 * (visuals.floatSpeed || 1)) * 15;
+    mainYPixel += floatOffset;
+  }
+  
+  const spinSpeed = 0.0006;
+  const rotationAngle = audioPlayer.paused ? 0 : Date.now() * spinSpeed;
+  
+  let mainMediaLoaded = false;
+  
+  ctx.save();
+  ctx.beginPath();
+  if (visuals.mainShape === "circle") {
+    ctx.arc(mainXPixel, mainYPixel, size / 2, 0, Math.PI * 2);
+  } else {
+    ctx.rect(mainXPixel - size / 2, mainYPixel - size / 2, size, size);
+  }
+  ctx.clip();
+  
+  if (mainMediaType === "image" && mainImage.src) {
+    mainMediaLoaded = true;
+    ctx.translate(mainXPixel, mainYPixel);
+    if (visuals.mainShape === "circle") ctx.rotate(rotationAngle);
+    ctx.drawImage(mainImage, -size / 2, -size / 2, size, size);
+  } else if (mainMediaType === "video" && mainVideo.src && !mainVideo.paused && mainVideo.readyState >= 2) {
+    mainMediaLoaded = true;
+    ctx.translate(mainXPixel, mainYPixel);
+    if (visuals.mainShape === "circle") ctx.rotate(rotationAngle);
+    ctx.drawImage(mainVideo, -size / 2, -size / 2, size, size);
+  }
+  ctx.restore();
+  
+  if (!mainMediaLoaded) {
+    drawDefaultVinyl(ctx, mainXPixel, mainYPixel, size, rotationAngle);
+  } else {
+    ctx.beginPath();
+    if (visuals.mainShape === "circle") {
+      ctx.arc(mainXPixel, mainYPixel, size / 2, 0, Math.PI * 2);
+    } else {
+      ctx.rect(mainXPixel - size / 2, mainYPixel - size / 2, size, size);
+    }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+  ctx.restore();
+  
+  // 5. Draw Fog
+  if (visuals.fogIntensity > 0) {
+    drawFog(w, h, visuals.fogIntensity / 100);
+  }
+  
+  // 6. Draw Lyrics
+  drawLyrics(w, h, curTime, visuals);
+}
+
+function drawDefaultVinyl(ctx, x, y, size, rotation) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  const r = size / 2;
+  
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = "#121215";
+  ctx.fill();
+  ctx.strokeStyle = "#272730";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+  ctx.lineWidth = 1;
+  for (let i = 0.35; i < 0.9; i += 0.08) {
+    ctx.beginPath();
+    ctx.arc(0, 0, r * i, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+  const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.35);
+  grad.addColorStop(0, "#ff2e93");
+  grad.addColorStop(1, "#6366f1");
+  ctx.fillStyle = grad;
+  ctx.fill();
+  
+  ctx.rotate(-rotation);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${r * 0.09}px Outfit`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("LYRICS", 0, -r * 0.07);
+  ctx.fillText("MAKER", 0, r * 0.07);
+  ctx.rotate(rotation);
+  
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.08, 0, Math.PI * 2);
+  ctx.fillStyle = "#09090c";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawFog(w, h, intensity) {
+  ctx.save();
+  fogParticles.forEach(p => {
+    p.x += p.dx;
+    p.y += p.dy;
+    
+    if (p.x * (w / 100) > w + p.r) p.x = -p.r / (w / 100);
+    if (p.y * (h / 100) > h + p.r) p.y = -p.r / (h / 100);
+    if (p.y * (h / 100) < -p.r) p.y = (h + p.r) / (h / 100);
+    
+    const px = p.x * (w / 100);
+    const py = p.y * (h / 100);
+    
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, p.r);
+    grad.addColorStop(0, `rgba(220, 225, 255, ${p.opacity * intensity})`);
+    grad.addColorStop(0.5, `rgba(220, 225, 255, ${p.opacity * intensity * 0.3})`);
+    grad.addColorStop(1, "rgba(220, 225, 255, 0)");
+    
+    ctx.beginPath();
+    ctx.arc(px, py, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawLyrics(w, h, curTime, visuals) {
+  if (lyrics.length === 0) return;
+  
+  let activeIndex = -1;
+  for (let i = 0; i < lyrics.length; i++) {
+    if (lyrics[i].time !== null && curTime >= lyrics[i].time) {
+      activeIndex = i;
+    }
+  }
+  
+  if (activeIndex === -1) activeIndex = 0;
+  
+  const lyricXPixel = (visuals.lyricX / 100) * w;
+  const lyricYPixel = (visuals.lyricY / 100) * h;
+  const fontSize = visuals.lyricFontSize;
+  const lineSpacing = fontSize * 1.5;
+  
+  const linesAbove = visuals.linesAbove;
+  const linesBelow = visuals.linesBelow === "auto" ? 1 : visuals.linesBelow;
+  
+  const startIdx = Math.max(0, activeIndex - linesAbove);
+  const endIdx = Math.min(lyrics.length - 1, activeIndex + linesBelow);
+  
+  const linesToDraw = [];
+  for (let i = startIdx; i <= endIdx; i++) {
+    linesToDraw.push({
+      index: i,
+      text: lyrics[i].text,
+      isActive: i === activeIndex,
+      offsetY: (i - activeIndex) * lineSpacing
+    });
+  }
+  
+  // Draw Background Box
+  if (visuals.frameOpacity > 0) {
+    ctx.save();
+    const frameW = visuals.frameWidth;
+    const frameH = visuals.frameHeight;
+    const frameX = lyricXPixel - frameW / 2;
+    const frameY = lyricYPixel - frameH / 2;
+    
+    ctx.beginPath();
+    drawRoundRect(ctx, frameX, frameY, frameW, frameH, 12);
+    ctx.fillStyle = hexToRgba(visuals.colorFrameBg, visuals.frameOpacity / 100);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+  
+  linesToDraw.forEach(item => {
+    ctx.save();
+    const lineY = lyricYPixel + item.offsetY;
+    let textX = lyricXPixel;
+    
+    let scale = 1.0;
+    
+    if (item.isActive) {
+      scale = visuals.lyricZoom || 1.1;
+      ctx.font = `bold ${fontSize * scale}px "${visuals.lyricFontFamily}"`;
+      ctx.fillStyle = visuals.colorLyricBase;
+      
+      if (visuals.lyricGlow > 0) {
+        ctx.shadowColor = visuals.colorLyricGlow;
+        ctx.shadowBlur = visuals.lyricGlow;
+      }
+    } else {
+      ctx.font = `normal ${fontSize}px "${visuals.lyricFontFamily}"`;
+      ctx.fillStyle = hexToRgba(visuals.colorLyricBase, 0.4);
+      ctx.shadowBlur = 0;
+    }
+    
+    if (visuals.lyricAlign === "center") {
+      ctx.textAlign = "center";
+    } else if (visuals.lyricAlign === "left") {
+      ctx.textAlign = "left";
+      if (visuals.frameOpacity > 0) {
+        textX = lyricXPixel - visuals.frameWidth / 2 + 40;
+      }
+    } else if (visuals.lyricAlign === "right") {
+      ctx.textAlign = "right";
+      if (visuals.frameOpacity > 0) {
+        textX = lyricXPixel + visuals.frameWidth / 2 - 40;
+      }
+    }
+    ctx.textBaseline = "middle";
+    
+    const subLines = item.text.split("\n");
+    const subLineSpacing = fontSize * 1.2;
+    
+    subLines.forEach((subText, subIdx) => {
+      const subLineY = lineY + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
+      ctx.fillText(subText, textX, subLineY);
+      
+      if (item.isActive && lyrics[item.index].time !== null) {
+        const textWidth = ctx.measureText(subText).width;
+        
+        const tStart = lyrics[item.index].time;
+        let tEnd = tStart + 6.0;
+        
+        if (item.index < lyrics.length - 1 && lyrics[item.index + 1].time !== null) {
+          tEnd = lyrics[item.index + 1].time;
+        } else if (audioPlayer.duration) {
+          tEnd = audioPlayer.duration;
+        }
+        
+        const lineDuration = tEnd - tStart;
+        const elapsed = curTime - tStart;
+        
+        const karaokeSpeedMult = visuals.karaokeSpeed || 1.0;
+        let progress = lineDuration > 0 ? (elapsed / lineDuration) * karaokeSpeedMult : 0;
+        progress = Math.max(0, Math.min(1, progress));
+        
+        ctx.save();
+        ctx.beginPath();
+        
+        let startX = textX;
+        if (visuals.lyricAlign === "center") {
+          startX = textX - textWidth / 2;
+        } else if (visuals.lyricAlign === "right") {
+          startX = textX - textWidth;
+        }
+        
+        ctx.rect(
+          startX - 10,
+          subLineY - (fontSize * scale) * 0.8,
+          textWidth * progress + 10,
+          (fontSize * scale) * 1.6
+        );
+        ctx.clip();
+        
+        ctx.fillStyle = visuals.colorLyricActive;
+        ctx.fillText(subText, textX, subLineY);
+        ctx.restore();
+      }
+    });
+    
+    ctx.restore();
+  });
+}
+
+function drawRoundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function hexToRgba(hex, alpha) {
+  hex = hex.replace("#", "");
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
