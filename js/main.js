@@ -864,7 +864,8 @@ async function convertWebmToMp4(webmBlob) {
     exportStatusText.innerText = '\u0110ang load FFmpeg engine (l\u1ea7n \u0111\u1ea7u ~10-20s)...';
 
     await ffmpeg.load({
-      coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+      coreURL: 'js/ffmpeg/ffmpeg-core.js',
+      wasmURL: 'js/ffmpeg/ffmpeg-core.wasm',
     });
 
     exportStatusText.innerText = 'FFmpeg s\u1eb5n s\u00e0ng, \u0111ang encode...';

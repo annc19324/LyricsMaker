@@ -16,7 +16,8 @@ const MIME_TYPES = {
   '.wav': 'audio/wav',
   '.mp3': 'audio/mpeg',
   '.mp4': 'video/mp4',
-  '.webm': 'video/webm'
+  '.webm': 'video/webm',
+  '.wasm': 'application/wasm'
 };
 
 const server = http.createServer((req, res) => {

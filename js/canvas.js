@@ -206,7 +206,7 @@ function renderCanvas() {
   // Float Animation
   const mainMediaOffset = { x: 0, y: 0 };
   if (visuals.floatEnabled) {
-    const floatOffset = Math.sin(Date.now() * 0.002 * (visuals.floatSpeed || 1)) * 15;
+    const floatOffset = Math.sin(curTime * 2.0 * (visuals.floatSpeed || 1)) * 15;
     mainYPixel += floatOffset;
     mainMediaOffset.y = floatOffset;
   }
