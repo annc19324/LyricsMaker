@@ -810,7 +810,7 @@ function startVideoExport() {
         const timePos = trimStart + (i / fps);
         
         // Vẽ canvas tại mốc thời gian timePos
-        renderCanvas(timePos);
+        window.renderCanvas(timePos);
 
         // Trích xuất bitmap
         const bitmap = await createImageBitmap(canvas);

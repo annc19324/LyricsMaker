@@ -710,3 +710,7 @@ function hexToRgba(hex, alpha) {
   const b = parseInt(hex.substring(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+
+// Expose renderCanvas to window to bypass import caching issues
+window.renderCanvas = renderCanvas;
