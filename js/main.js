@@ -107,6 +107,7 @@ const btnClearTimings = document.getElementById("btn-clear-timings");
 const toggleMainBorder  = () => document.getElementById("toggle-main-border");
 const toggleMainSpin    = () => document.getElementById("toggle-main-spin");
 const toggleMainFull    = () => document.getElementById("toggle-main-full");
+const toggleLyricBold   = () => document.getElementById("toggle-lyric-bold");
 const toggleWmFloat     = () => document.getElementById("toggle-wm-float");
 const sliderLineSpacing = () => document.getElementById("slider-line-spacing");
 const toggleKaraoke     = () => document.getElementById("toggle-karaoke");
@@ -341,6 +342,7 @@ function saveState() {
       colorLyricActive: colorLyricActive.value,
       karaokeSpeed: parseFloat(sliderKaraokeSpeed.value) || 1.0,
       lyricZoom: parseFloat(sliderLyricZoom.value) || 1.1,
+      lyricBoldEnabled: toggleLyricBold()?.checked ?? true,
       lyricGlow: parseInt(sliderLyricGlow.value) || 0,
       colorLyricGlow: colorLyricGlow.value,
       frameOpacity: parseInt(sliderFrameOpacity.value) || 0,
@@ -831,6 +833,20 @@ function startVideoExport() {
 
 
 async function convertWebmToMp4(webmBlob) {
+  // Web Worker Proxy to bypass Cross-Origin Worker restrictions for FFmpeg.js
+  if (window.Worker && !window.__workerProxyApplied) {
+    const OriginalWorker = window.Worker;
+    window.Worker = function(scriptURL, options) {
+      let url = scriptURL.toString();
+      if (url.indexOf('814.ffmpeg.js') !== -1) {
+        url = window.location.origin + '/js/ffmpeg/814.ffmpeg.js';
+        console.log('[Worker Proxy] Redirected FFmpeg worker chunk to local Same-Origin URL:', url);
+      }
+      return new OriginalWorker(url, options);
+    };
+    window.Worker.prototype = OriginalWorker.prototype;
+    window.__workerProxyApplied = true;
+  }
   const phaseTitle = document.getElementById('export-phase-title');
   const phaseDesc  = document.getElementById('export-phase-desc');
 
@@ -1037,7 +1053,8 @@ document.addEventListener("DOMContentLoaded", () => {
     { el: toggleKaraoke() },
     { el: toggleTransition() },
     { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" },
-    { el: toggleWmFloat() }
+    { el: toggleWmFloat() },
+    { el: toggleLyricBold() }
   ];
   
   dynamicInputs.forEach(item => {

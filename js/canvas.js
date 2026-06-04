@@ -456,7 +456,8 @@ function drawLyrics(w, h, curTime, visuals) {
     
     if (item.isActive) {
       scale = visuals.lyricZoom || 1.1;
-      ctx.font = `bold ${fontSize * scale}px "${visuals.lyricFontFamily}"`;
+      const weight = visuals.lyricBoldEnabled !== false ? "bold" : "normal";
+      ctx.font = `${weight} ${fontSize * scale}px "${visuals.lyricFontFamily}"`;
       ctx.fillStyle = visuals.colorLyricBase;
       
       if (visuals.lyricGlow > 0) {
