@@ -1431,3 +1431,61 @@ canvas {
 @keyframes toast-slide-out {
   to { transform: translateX(110%); opacity: 0; }
 }
+
+/* ── Highlight Rule Rows ─────────────────────────────────────── */
+.highlight-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.highlight-rule-row:last-child { border-bottom: none; }
+.highlight-rule-row .hl-pattern,
+.highlight-rule-row .hl-close {
+  width: 44px !important;
+  padding: 6px 8px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+.highlight-rule-row .color-picker-wrapper {
+  flex: 1;
+  padding: 4px 10px;
+}
+.highlight-rule-row .hl-delete {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.highlight-rule-row .hl-delete:hover {
+  background: rgba(239,68,68,0.18);
+}
+
+/* ── si-align-btn (song info align) ─────────────────────────── */
+.si-align-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+.si-align-btn:hover { color: #fff; background-color: rgba(255,255,255,0.02); }
+.si-align-btn.active { background-color: var(--color-primary); color: #fff; }
+
+/* ── flex-row utility ────────────────────────────────────────── */
+.flex-row { display: flex; align-items: center; }

@@ -15,7 +15,7 @@ import {
 import {
   canvas, ctx, bgImage, mainImage, bgVideo, mainVideo,
   bgMediaType, mainMediaType, setBgMediaType, setMainMediaType,
-  initCanvasModule, updateCanvasSize, startRenderLoop
+  initCanvasModule, updateCanvasSize, startRenderLoop, updateHighlightRules
 } from "./canvas.js";
 
 // --- Global UI references ---
@@ -102,6 +102,29 @@ const valPreviewZoom = document.getElementById("val-preview-zoom");
 // Timings Action Button references
 const btnSortTimings = document.getElementById("btn-sort-timings");
 const btnClearTimings = document.getElementById("btn-clear-timings");
+
+// New feature references (added)
+const toggleMainBorder  = () => document.getElementById("toggle-main-border");
+const toggleMainSpin    = () => document.getElementById("toggle-main-spin");
+const sliderSpinSpeed   = () => document.getElementById("slider-spin-speed");
+const sliderFogSpeed    = () => document.getElementById("slider-fog-speed");
+const toggleWatermark   = () => document.getElementById("toggle-watermark");
+const inputWatermarkText= () => document.getElementById("input-watermark-text");
+const sliderWmX         = () => document.getElementById("slider-wm-x");
+const sliderWmY         = () => document.getElementById("slider-wm-y");
+const sliderWmSize      = () => document.getElementById("slider-wm-size");
+const sliderWmOpacity   = () => document.getElementById("slider-wm-opacity");
+const colorWm           = () => document.getElementById("color-wm");
+const toggleWmItalic    = () => document.getElementById("toggle-wm-italic");
+const toggleWmBold      = () => document.getElementById("toggle-wm-bold");
+const sliderWmRotate    = () => document.getElementById("slider-wm-rotate");
+const sliderWmSpacing   = () => document.getElementById("slider-wm-spacing");
+// Song info layout
+const sliderSiX         = () => document.getElementById("slider-si-x");
+const sliderSiY         = () => document.getElementById("slider-si-y");
+const sliderSiSize      = () => document.getElementById("slider-si-size");
+// Highlight rules container
+const highlightRulesContainer = () => document.getElementById("highlight-rules-container");
 
 let isProgressBarDragging = false;
 let isExporting = false;
@@ -298,11 +321,39 @@ function saveState() {
       frameOpacity: parseInt(sliderFrameOpacity.value) || 0,
       frameWidth: parseInt(sliderFrameWidth.value) || 600,
       frameHeight: parseInt(sliderFrameHeight.value) || 150,
-      colorFrameBg: colorFrameBg.value
-    }
+      colorFrameBg: colorFrameBg.value,
+      mainBorderEnabled: toggleMainBorder()?.checked ?? true,
+      spinEnabled:       toggleMainSpin()?.checked ?? true,
+      spinSpeed:         parseFloat(sliderSpinSpeed()?.value) || 1.0,
+      fogSpeed:          parseFloat(sliderFogSpeed()?.value) || 0.5,
+      watermarkEnabled:  toggleWatermark()?.checked ?? false,
+      watermarkText:     inputWatermarkText()?.value || "@annc19324",
+      watermarkX:        parseInt(sliderWmX()?.value) || 50,
+      watermarkY:        parseInt(sliderWmY()?.value) || 50,
+      watermarkFontSize: parseInt(sliderWmSize()?.value) || 18,
+      watermarkOpacity:  parseInt(sliderWmOpacity()?.value) || 60,
+      watermarkColor:    colorWm()?.value || "#ffffff",
+      watermarkItalic:   toggleWmItalic()?.checked ?? false,
+      watermarkBold:     toggleWmBold()?.checked ?? false,
+      watermarkRotate:   parseInt(sliderWmRotate()?.value) || 0,
+      watermarkLetterSpacing: parseInt(sliderWmSpacing()?.value) || 0,
+      songInfoX:         parseInt(sliderSiX()?.value) || 50,
+      songInfoY:         parseInt(sliderSiY()?.value) || 8,
+      songInfoFontSize:  parseInt(sliderSiSize()?.value) || 20,
+      songInfoAlign:     document.querySelector(".si-align-btn.active")?.getAttribute("data-align") || "center"
+    },
+    highlightRules: state.highlightRules
   };
-  
-  saveCurrentState(state.activeRatio, lyrics, uiValues);
+
+  // Save active tabs
+  const activeLeftTabEl  = document.querySelector("#sidebar-left .tab-btn.active");
+  const activeRightTabEl = document.querySelector("#sidebar-right .tab-btn.active");
+  const tabState = {
+    activeLeftTab:  activeLeftTabEl?.getAttribute("data-tab")  || "tab-media",
+    activeRightTab: activeRightTabEl?.getAttribute("data-tab") || "tab-lyrics-input"
+  };
+
+  saveCurrentState(state.activeRatio, lyrics, uiValues, tabState);
 }
 
 function applyStateToUI() {
@@ -418,6 +469,46 @@ function applyStateToUI() {
   }
   
   updateCanvasSize();
+
+  // Apply new visual properties
+  if (visuals) {
+    if (toggleMainBorder())  toggleMainBorder().checked  = visuals.mainBorderEnabled !== false;
+    if (toggleMainSpin())    toggleMainSpin().checked    = visuals.spinEnabled !== false;
+    if (sliderSpinSpeed())   { sliderSpinSpeed().value   = visuals.spinSpeed || 1.0; const el = document.getElementById("val-spin-speed"); if(el) el.innerText = (visuals.spinSpeed||1.0)+"x"; }
+    if (sliderFogSpeed())    { sliderFogSpeed().value    = visuals.fogSpeed || 0.5;  const el = document.getElementById("val-fog-speed");  if(el) el.innerText = (visuals.fogSpeed||0.5)+"x"; }
+    if (toggleWatermark())   toggleWatermark().checked   = visuals.watermarkEnabled || false;
+    if (inputWatermarkText()) inputWatermarkText().value = visuals.watermarkText || "@annc19324";
+    if (sliderWmX())         { sliderWmX().value         = visuals.watermarkX || 50;        const el=document.getElementById("val-wm-x");       if(el) el.innerText=(visuals.watermarkX||50)+"%"; }
+    if (sliderWmY())         { sliderWmY().value         = visuals.watermarkY || 50;        const el=document.getElementById("val-wm-y");       if(el) el.innerText=(visuals.watermarkY||50)+"%"; }
+    if (sliderWmSize())      { sliderWmSize().value      = visuals.watermarkFontSize || 18; const el=document.getElementById("val-wm-size");    if(el) el.innerText=(visuals.watermarkFontSize||18)+"px"; }
+    if (sliderWmOpacity())   { sliderWmOpacity().value   = visuals.watermarkOpacity || 60;  const el=document.getElementById("val-wm-opacity"); if(el) el.innerText=(visuals.watermarkOpacity||60)+"%"; }
+    if (colorWm())           { colorWm().value           = visuals.watermarkColor || "#ffffff"; const el=colorWm().parentElement?.querySelector(".color-hex"); if(el) el.innerText=(visuals.watermarkColor||"#ffffff").toUpperCase(); }
+    if (toggleWmItalic())    toggleWmItalic().checked    = visuals.watermarkItalic || false;
+    if (toggleWmBold())      toggleWmBold().checked      = visuals.watermarkBold || false;
+    if (sliderWmRotate())    { sliderWmRotate().value    = visuals.watermarkRotate || 0;    const el=document.getElementById("val-wm-rotate");  if(el) el.innerText=(visuals.watermarkRotate||0)+"°"; }
+    if (sliderWmSpacing())   { sliderWmSpacing().value   = visuals.watermarkLetterSpacing||0; const el=document.getElementById("val-wm-spacing"); if(el) el.innerText=(visuals.watermarkLetterSpacing||0)+"px"; }
+    if (sliderSiX())         { sliderSiX().value         = visuals.songInfoX || 50;         const el=document.getElementById("val-si-x");       if(el) el.innerText=(visuals.songInfoX||50)+"%"; }
+    if (sliderSiY())         { sliderSiY().value         = visuals.songInfoY || 8;          const el=document.getElementById("val-si-y");       if(el) el.innerText=(visuals.songInfoY||8)+"%"; }
+    if (sliderSiSize())      { sliderSiSize().value      = visuals.songInfoFontSize || 20;  const el=document.getElementById("val-si-size");    if(el) el.innerText=(visuals.songInfoFontSize||20)+"px"; }
+    document.querySelectorAll(".si-align-btn").forEach(b => {
+      if (b.getAttribute("data-align") === (visuals.songInfoAlign || "center")) b.classList.add("active");
+      else b.classList.remove("active");
+    });
+  }
+
+  // Restore active tabs
+  if (state.activeLeftTab) {
+    const leftBtn = document.querySelector(`#sidebar-left .tab-btn[data-tab="${state.activeLeftTab}"]`);
+    if (leftBtn) leftBtn.click();
+  }
+  if (state.activeRightTab) {
+    const rightBtn = document.querySelector(`#sidebar-right .tab-btn[data-tab="${state.activeRightTab}"]`);
+    if (rightBtn) rightBtn.click();
+  }
+
+  // Sync highlight rules to canvas
+  updateHighlightRules(state.highlightRules || []);
+  renderHighlightRulesList();
 }
 
 function handlePlayPause() {
@@ -570,6 +661,8 @@ function setupFileZone(zoneId, fileInputId, fileInfoId, mediaTypeKey) {
       mainVideo.load();
       mainVideo.play().catch(e => console.log(e));
     }
+    // Persist to IndexedDB
+    saveFileToIDB(mediaTypeKey, file).catch(e => console.warn('IDB save failed:', e));
   }
 }
 
@@ -783,6 +876,53 @@ function cancelVideoExport() {
 }
 
 // --- DOM Initialization ---
+
+
+// ── Highlight Rules Manager ────────────────────────────────────────────────
+function renderHighlightRulesList() {
+  const container = highlightRulesContainer();
+  if (!container) return;
+  container.innerHTML = "";
+  const rules = state.highlightRules || [];
+  rules.forEach((rule, idx) => {
+    const row = document.createElement("div");
+    row.className = "highlight-rule-row";
+    row.innerHTML = `
+      <input class="hl-pattern" type="text" value="${escHtml(rule.pattern)}" placeholder="[" style="width:40px">
+      <input class="hl-close"   type="text" value="${escHtml(rule.close||'')}" placeholder="]" style="width:40px">
+      <div class="color-picker-wrapper" style="flex:1">
+        <input class="hl-color" type="color" value="${rule.color||'#f59e0b'}">
+        <span class="color-hex">${(rule.color||'#f59e0b').toUpperCase()}</span>
+      </div>
+      <button class="btn btn-small hl-delete" data-idx="${idx}" title="Xóa"><i class="fa-solid fa-trash"></i></button>
+    `;
+    // Events
+    row.querySelector(".hl-pattern").addEventListener("input", e => {
+      state.highlightRules[idx].pattern = e.target.value;
+      updateHighlightRules(state.highlightRules); saveState();
+    });
+    row.querySelector(".hl-close").addEventListener("input", e => {
+      state.highlightRules[idx].close = e.target.value;
+      updateHighlightRules(state.highlightRules); saveState();
+    });
+    row.querySelector(".hl-color").addEventListener("input", e => {
+      state.highlightRules[idx].color = e.target.value;
+      row.querySelector(".color-hex").innerText = e.target.value.toUpperCase();
+      updateHighlightRules(state.highlightRules); saveState();
+    });
+    row.querySelector(".hl-delete").addEventListener("click", () => {
+      state.highlightRules.splice(idx, 1);
+      updateHighlightRules(state.highlightRules);
+      saveState();
+      renderHighlightRulesList();
+    });
+    container.appendChild(row);
+  });
+}
+
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   initCanvasModule();
@@ -1068,4 +1208,136 @@ document.addEventListener("DOMContentLoaded", () => {
   btnSkipForward.addEventListener("click", () => {
     audioPlayer.currentTime = Math.min(audioPlayer.duration || 60, audioPlayer.currentTime + 5);
   });
+
+  // ── New controls ────────────────────────────────────────────────────────
+  const newSliders = [
+    "slider-spin-speed","slider-fog-speed",
+    "slider-wm-x","slider-wm-y","slider-wm-size","slider-wm-opacity",
+    "slider-wm-rotate","slider-wm-spacing",
+    "slider-si-x","slider-si-y","slider-si-size"
+  ];
+  newSliders.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      const valEl = document.getElementById("val-" + id.replace("slider-",""));
+      if (valEl) {
+        const unit = id.includes("size")||id.includes("spacing") ? "px"
+                   : id.includes("rotate") ? "°"
+                   : id.includes("opacity") ? "%" : (id.includes("speed") ? "x" : "%");
+        valEl.innerText = el.value + unit;
+      }
+      saveState();
+    });
+  });
+
+  const newToggles = ["toggle-main-border","toggle-main-spin","toggle-watermark","toggle-wm-italic","toggle-wm-bold"];
+  newToggles.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("change", saveState);
+  });
+
+  const newInputs2 = ["input-watermark-text","color-wm"];
+  newInputs2.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => {
+      if (el.type === "color") {
+        const hex = el.parentElement?.querySelector(".color-hex");
+        if (hex) hex.innerText = el.value.toUpperCase();
+      }
+      saveState();
+    });
+  });
+
+  // Song info align buttons
+  document.querySelectorAll(".si-align-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".si-align-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      saveState();
+    });
+  });
+
+  // Add highlight rule button
+  const btnAddHighlight = document.getElementById("btn-add-highlight");
+  if (btnAddHighlight) {
+    btnAddHighlight.addEventListener("click", () => {
+      if (!state.highlightRules) state.highlightRules = [];
+      state.highlightRules.push({ pattern: "[", close: "]", color: "#f59e0b" });
+      updateHighlightRules(state.highlightRules);
+      saveState();
+      renderHighlightRulesList();
+    });
+  }
+
+  // Init highlight rules
+  updateHighlightRules(state.highlightRules || []);
+  renderHighlightRulesList();
+
+  // File persistence via IndexedDB
+  initFileStore();
 });
+
+// ── IndexedDB File Persistence ────────────────────────────────────────────
+const DB_NAME = 'LyricsMakerDB';
+const DB_VER  = 1;
+let fileDB = null;
+
+function openFileDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore('files');
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror   = e => reject(e);
+  });
+}
+
+async function saveFileToIDB(key, blob) {
+  if (!fileDB) return;
+  return new Promise((resolve, reject) => {
+    const tx  = fileDB.transaction('files', 'readwrite');
+    const st  = tx.objectStore('files');
+    st.put(blob, key);
+    tx.oncomplete = resolve;
+    tx.onerror    = reject;
+  });
+}
+
+async function loadFileFromIDB(key) {
+  if (!fileDB) return null;
+  return new Promise((resolve) => {
+    const tx  = fileDB.transaction('files', 'readonly');
+    const st  = tx.objectStore('files');
+    const req = st.get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror   = () => resolve(null);
+  });
+}
+
+async function initFileStore() {
+  try {
+    fileDB = await openFileDB();
+    // Restore saved files
+    const audioBlob = await loadFileFromIDB('audio');
+    if (audioBlob) {
+      const url = URL.createObjectURL(audioBlob);
+      audioPlayer.src = url;
+      audioPlayer.load();
+      setAudioFileLoaded(true);
+      document.getElementById('audio-file-info').innerText = '✅ Nhạc đã lưu (từ phiên trước)';
+    }
+    const bgImgBlob = await loadFileFromIDB('bg_image');
+    if (bgImgBlob) bgImage.src = URL.createObjectURL(bgImgBlob);
+    const mainImgBlob = await loadFileFromIDB('main_image');
+    if (mainImgBlob) mainImage.src = URL.createObjectURL(mainImgBlob);
+    const bgVidBlob = await loadFileFromIDB('bg_video');
+    if (bgVidBlob) { bgVideo.src = URL.createObjectURL(bgVidBlob); bgVideo.load(); bgVideo.play().catch(()=>{}); }
+    const mainVidBlob = await loadFileFromIDB('main_video');
+    if (mainVidBlob) { mainVideo.src = URL.createObjectURL(mainVidBlob); mainVideo.load(); mainVideo.play().catch(()=>{}); }
+  } catch(e) {
+    console.warn('IndexedDB init failed:', e);
+  }
+}

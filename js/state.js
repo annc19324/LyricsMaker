@@ -1,9 +1,9 @@
 /* --- STATE MANAGEMENT MODULE --- */
 
 export const DEFAULT_SETTINGS = {
-  songTitle: "Bài Ca Hy Vọng",
-  songArtist: "Antigravity Synth",
-  songChannel: "Google DeepMind Studio",
+  songTitle: "Tên bài hát",
+  songArtist: "Tên ca sĩ/rapper",
+  songChannel: "@annc19324",
   rawLyrics: `[Intro - Lofi Synth Melody]
 
 Chào mừng bạn đến với Lyrics Maker
@@ -54,7 +54,26 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       frameOpacity: 25,
       frameWidth: 500,
       frameHeight: 180,
-      colorFrameBg: "#000000"
+      colorFrameBg: "#000000",
+      mainBorderEnabled: true,
+      spinEnabled: true,
+      spinSpeed: 1.0,
+      fogSpeed: 0.5,
+      watermarkEnabled: false,
+      watermarkText: "@annc19324",
+      watermarkX: 50,
+      watermarkY: 50,
+      watermarkFontSize: 18,
+      watermarkOpacity: 60,
+      watermarkColor: "#ffffff",
+      watermarkItalic: false,
+      watermarkBold: false,
+      watermarkRotate: -15,
+      watermarkLetterSpacing: 2,
+      songInfoX: 50,
+      songInfoY: 8,
+      songInfoFontSize: 20,
+      songInfoAlign: "center"
     },
     "9:16": {
       bgBlur: 0,           // Default to 0 as requested
@@ -82,7 +101,26 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       frameOpacity: 0,
       frameWidth: 600,
       frameHeight: 140,
-      colorFrameBg: "#000000"
+      colorFrameBg: "#000000",
+      mainBorderEnabled: true,
+      spinEnabled: true,
+      spinSpeed: 1.0,
+      fogSpeed: 0.5,
+      watermarkEnabled: false,
+      watermarkText: "@annc19324",
+      watermarkX: 50,
+      watermarkY: 50,
+      watermarkFontSize: 18,
+      watermarkOpacity: 60,
+      watermarkColor: "#ffffff",
+      watermarkItalic: false,
+      watermarkBold: false,
+      watermarkRotate: -15,
+      watermarkLetterSpacing: 2,
+      songInfoX: 50,
+      songInfoY: 8,
+      songInfoFontSize: 20,
+      songInfoAlign: "center"
     },
     "1:1": {
       bgBlur: 0,           // Default to 0 as requested
@@ -112,7 +150,12 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       frameHeight: 150,
       colorFrameBg: "#000000"
     }
-  }
+  },
+  highlightRules: [
+    { pattern: "[", close: "]", color: "#f59e0b" }
+  ],
+  activeLeftTab: "tab-media",
+  activeRightTab: "tab-lyrics-input"
 };
 
 export let state = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
@@ -152,6 +195,15 @@ export function loadSavedState() {
       if (parsedGlobal.timings) {
         state.timings = parsedGlobal.timings;
       }
+      if (parsedGlobal.highlightRules) {
+        state.highlightRules = parsedGlobal.highlightRules;
+      }
+      if (parsedGlobal.activeLeftTab) {
+        state.activeLeftTab = parsedGlobal.activeLeftTab;
+      }
+      if (parsedGlobal.activeRightTab) {
+        state.activeRightTab = parsedGlobal.activeRightTab;
+      }
     } catch (e) {
       console.error("Error loading global state: ", e);
     }
@@ -169,7 +221,7 @@ export function loadSavedState() {
   });
 }
 
-export function saveCurrentState(activeRatio, lyricsList, uiValues) {
+export function saveCurrentState(activeRatio, lyricsList, uiValues, tabState) {
   // Sync core state values
   state.songTitle = uiValues.songTitle;
   state.songArtist = uiValues.songArtist;
@@ -183,6 +235,13 @@ export function saveCurrentState(activeRatio, lyricsList, uiValues) {
   state.activeRatio = activeRatio;
   state.previewZoom = uiValues.previewZoom;
   state.timings = lyricsList.map(line => line.time);
+  if (tabState) {
+    if (tabState.activeLeftTab) state.activeLeftTab = tabState.activeLeftTab;
+    if (tabState.activeRightTab) state.activeRightTab = tabState.activeRightTab;
+  }
+  if (uiValues.highlightRules !== undefined) {
+    state.highlightRules = uiValues.highlightRules;
+  }
   
   // Save global
   localStorage.setItem("lyricsmaker_global", JSON.stringify({
@@ -197,7 +256,10 @@ export function saveCurrentState(activeRatio, lyricsList, uiValues) {
     volume: state.volume,
     activeRatio: state.activeRatio,
     previewZoom: state.previewZoom,
-    timings: state.timings
+    timings: state.timings,
+    highlightRules: state.highlightRules,
+    activeLeftTab: state.activeLeftTab,
+    activeRightTab: state.activeRightTab
   }));
 
   // Save current visuals

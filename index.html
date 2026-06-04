@@ -182,6 +182,33 @@
               </div>
             </div>
 
+
+            <!-- Song Info Layout -->
+            <div class="panel-section">
+              <h3><i class="fa-solid fa-music"></i> Bố Cục Tên Bài / Ca Sĩ</h3>
+              <div class="form-group">
+                <label>Căn lề</label>
+                <div class="align-selector">
+                  <button class="si-align-btn" data-align="left"><i class="fa-solid fa-align-left"></i> Trái</button>
+                  <button class="si-align-btn active" data-align="center"><i class="fa-solid fa-align-center"></i> Giữa</button>
+                  <button class="si-align-btn" data-align="right"><i class="fa-solid fa-align-right"></i> Phải</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <div class="slider-header"><label for="slider-si-size">Cỡ chữ</label><span class="slider-value" id="val-si-size">20px</span></div>
+                <input type="range" id="slider-si-size" min="10" max="60" value="20">
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-si-x">Vị trí X</label><span class="slider-value" id="val-si-x">50%</span></div>
+                  <input type="range" id="slider-si-x" min="0" max="100" value="50">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-si-y">Vị trí Y</label><span class="slider-value" id="val-si-y">8%</span></div>
+                  <input type="range" id="slider-si-y" min="0" max="100" value="8">
+                </div>
+              </div>
+            </div>
             <!-- Background Styles -->
             <div class="panel-section">
               <h3><i class="fa-solid fa-palette"></i> Cài Đặt Nền</h3>
@@ -210,6 +237,28 @@
                   <button class="toggle-btn active" id="btn-shape-circle">Tròn</button>
                   <button class="toggle-btn" id="btn-shape-rect">Vuông</button>
                 </div>
+
+              <div class="form-group flex-row justify-between">
+                <label for="toggle-main-border">Hiển thị viền (Border)</label>
+                <div class="checkbox-apple">
+                  <input type="checkbox" id="toggle-main-border" checked>
+                  <label for="toggle-main-border"></label>
+                </div>
+              </div>
+              <div class="form-group flex-row justify-between">
+                <label for="toggle-main-spin">Quay ảnh/video chính</label>
+                <div class="checkbox-apple">
+                  <input type="checkbox" id="toggle-main-spin" checked>
+                  <label for="toggle-main-spin"></label>
+                </div>
+              </div>
+              <div class="form-group">
+                <div class="slider-header">
+                  <label for="slider-spin-speed">Tốc độ quay</label>
+                  <span class="slider-value" id="val-spin-speed">1.0x</span>
+                </div>
+                <input type="range" id="slider-spin-speed" min="0.1" max="5" step="0.1" value="1.0">
+              </div>
               </div>
               <div class="form-group">
                 <div class="slider-header">
@@ -321,6 +370,14 @@
                 </div>
                 <input type="range" id="slider-fog-intensity" min="0" max="100" value="30">
               </div>
+              <div class="form-group">
+                <div class="slider-header">
+                  <label for="slider-fog-speed">Tốc độ sương mù (Fog Speed)</label>
+                  <span class="slider-value" id="val-fog-speed">0.5x</span>
+                </div>
+                <input type="range" id="slider-fog-speed" min="0.0" max="5" step="0.1" value="0.5">
+              </div>
+
             </div>
 
             <!-- Lyrics Effects -->
@@ -407,6 +464,81 @@
                   <span class="color-hex">#000000</span>
                 </div>
               </div>
+            </div>
+
+            <!-- Watermark -->
+            <div class="panel-section">
+              <h3><i class="fa-solid fa-copyright"></i> Watermark</h3>
+              <div class="form-group flex-row justify-between">
+                <label for="toggle-watermark">Bật Watermark</label>
+                <div class="checkbox-apple">
+                  <input type="checkbox" id="toggle-watermark">
+                  <label for="toggle-watermark"></label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="input-watermark-text">Nội dung</label>
+                <input type="text" id="input-watermark-text" value="@annc19324" placeholder="@username">
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-wm-x">Vị trí X</label><span class="slider-value" id="val-wm-x">50%</span></div>
+                  <input type="range" id="slider-wm-x" min="0" max="100" value="50">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-wm-y">Vị trí Y</label><span class="slider-value" id="val-wm-y">50%</span></div>
+                  <input type="range" id="slider-wm-y" min="0" max="100" value="50">
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-wm-size">Cỡ chữ</label><span class="slider-value" id="val-wm-size">18px</span></div>
+                  <input type="range" id="slider-wm-size" min="8" max="80" value="18">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-wm-opacity">Độ mờ</label><span class="slider-value" id="val-wm-opacity">60%</span></div>
+                  <input type="range" id="slider-wm-opacity" min="0" max="100" value="60">
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-wm-rotate">Xoay</label><span class="slider-value" id="val-wm-rotate">0°</span></div>
+                  <input type="range" id="slider-wm-rotate" min="-180" max="180" value="0">
+                </div>
+                <div class="form-group">
+                  <div class="slider-header"><label for="slider-wm-spacing">Khoảng chữ</label><span class="slider-value" id="val-wm-spacing">0px</span></div>
+                  <input type="range" id="slider-wm-spacing" min="0" max="20" value="0">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="color-wm">Màu chữ</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="color-wm" value="#ffffff">
+                  <span class="color-hex">#FFFFFF</span>
+                </div>
+              </div>
+              <div class="form-group flex-row" style="gap:12px">
+                <div class="flex-row justify-between" style="flex:1">
+                  <label for="toggle-wm-italic">Nghiêng</label>
+                  <div class="checkbox-apple"><input type="checkbox" id="toggle-wm-italic"><label for="toggle-wm-italic"></label></div>
+                </div>
+                <div class="flex-row justify-between" style="flex:1">
+                  <label for="toggle-wm-bold">Đậm</label>
+                  <div class="checkbox-apple"><input type="checkbox" id="toggle-wm-bold"><label for="toggle-wm-bold"></label></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Highlight Rules -->
+            <div class="panel-section">
+              <h3><i class="fa-solid fa-highlighter"></i> Highlight Chữ</h3>
+              <p style="font-size:12px;color:var(--color-text-muted);margin-bottom:8px">
+                Chọn ký tự mở/đóng và màu. Áp dụng cho lyrics, tên bài, ca sĩ, kênh.
+              </p>
+              <div id="highlight-rules-container"></div>
+              <button id="btn-add-highlight" class="btn btn-secondary mt-3" style="width:100%">
+                <i class="fa-solid fa-plus"></i> Thêm quy tắc highlight
+              </button>
             </div>
           </div>
         </div>

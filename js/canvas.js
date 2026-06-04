@@ -102,6 +102,10 @@ export function updateCanvasSize() {
   aspectRatioBox.style.height = `${boxHeight * zoomFactor}px`;
 }
 
+export function updateHighlightRules(rules) {
+  window.__highlightRules = rules || [];
+}
+
 export function startRenderLoop() {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId);
@@ -176,22 +180,18 @@ function renderCanvas() {
   
   // 3. Draw Song Info
   ctx.save();
+  const siFontSize = visuals.songInfoFontSize || 20;
+  const siX = ((visuals.songInfoX || 50) / 100) * w;
+  const siY = ((visuals.songInfoY || 8) / 100) * h;
+  const siAlign = visuals.songInfoAlign || "center";
+  ctx.textAlign = siAlign;
   ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
-  if (state.activeRatio === "16:9") {
-    ctx.textAlign = "left";
-    ctx.font = "bold 20px Outfit";
-    ctx.fillText(state.songTitle || "", 40, 50);
-    ctx.font = "normal 14px Outfit";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-    ctx.fillText(`${state.songArtist || ""} • ${state.songChannel || ""}`, 40, 75);
-  } else {
-    ctx.textAlign = "center";
-    ctx.font = "bold 22px Outfit";
-    ctx.fillText(state.songTitle || "", w / 2, 60);
-    ctx.font = "normal 15px Outfit";
-    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-    ctx.fillText(`${state.songArtist || ""} • ${state.songChannel || ""}`, w / 2, 90);
-  }
+  ctx.font = `bold ${siFontSize}px Outfit`;
+  drawHighlightedText(ctx, state.songTitle || "", siX, siY, siFontSize, "rgba(255,255,255,0.9)");
+  ctx.font = `normal ${Math.round(siFontSize * 0.75)}px Outfit`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  const subLine = `${state.songArtist || ""} • ${state.songChannel || ""}`;
+  drawHighlightedText(ctx, subLine, siX, siY + siFontSize * 1.4, Math.round(siFontSize * 0.75), "rgba(255,255,255,0.6)");
   ctx.restore();
   
   // 4. Draw Main Media
@@ -206,8 +206,9 @@ function renderCanvas() {
     mainYPixel += floatOffset;
   }
   
-  const spinSpeed = 0.0006;
-  const rotationAngle = audioPlayer.paused ? 0 : Date.now() * spinSpeed;
+  const spinEnabled = visuals.spinEnabled !== false;
+  const spinSpeedMult = visuals.spinSpeed || 1.0;
+  const rotationAngle = (spinEnabled && !audioPlayer.paused) ? Date.now() * 0.0006 * spinSpeedMult : 0;
   
   let mainMediaLoaded = false;
   
@@ -235,7 +236,7 @@ function renderCanvas() {
   
   if (!mainMediaLoaded) {
     drawDefaultVinyl(ctx, mainXPixel, mainYPixel, size, rotationAngle);
-  } else {
+  } else if (visuals.mainBorderEnabled !== false) {
     ctx.beginPath();
     if (visuals.mainShape === "circle") {
       ctx.arc(mainXPixel, mainYPixel, size / 2, 0, Math.PI * 2);
@@ -250,10 +251,13 @@ function renderCanvas() {
   
   // 5. Draw Fog
   if (visuals.fogIntensity > 0) {
-    drawFog(w, h, visuals.fogIntensity / 100);
+    drawFog(w, h, visuals.fogIntensity / 100, visuals);
   }
   
-  // 6. Draw Lyrics
+  // 6. Draw Watermark on main media area
+  drawWatermark(ctx, w, h, visuals);
+
+  // 7. Draw Lyrics
   drawLyrics(w, h, curTime, visuals);
 }
 
@@ -306,7 +310,7 @@ function drawDefaultVinyl(ctx, x, y, size, rotation) {
   ctx.restore();
 }
 
-function drawFog(w, h, intensity) {
+function drawFog(w, h, intensity, visuals) {
   ctx.save();
   fogParticles.forEach(p => {
     p.x += p.dx;
@@ -409,14 +413,10 @@ function drawLyrics(w, h, curTime, visuals) {
       ctx.textAlign = "center";
     } else if (visuals.lyricAlign === "left") {
       ctx.textAlign = "left";
-      if (visuals.frameOpacity > 0) {
-        textX = lyricXPixel - visuals.frameWidth / 2 + 40;
-      }
+      textX = lyricXPixel - (visuals.frameWidth || 600) / 2 + 40;
     } else if (visuals.lyricAlign === "right") {
       ctx.textAlign = "right";
-      if (visuals.frameOpacity > 0) {
-        textX = lyricXPixel + visuals.frameWidth / 2 - 40;
-      }
+      textX = lyricXPixel + (visuals.frameWidth || 600) / 2 - 40;
     }
     ctx.textBaseline = "middle";
     
@@ -425,8 +425,9 @@ function drawLyrics(w, h, curTime, visuals) {
     
     subLines.forEach((subText, subIdx) => {
       const subLineY = lineY + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
-      ctx.fillText(subText, textX, subLineY);
-      
+      const baseClr = item.isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, 0.4);
+      drawHighlightedText(ctx, subText, textX, subLineY, item.isActive ? fontSize * scale : fontSize, baseClr);
+
       if (item.isActive && lyrics[item.index].time !== null) {
         const textWidth = ctx.measureText(subText).width;
         
@@ -486,6 +487,125 @@ function drawRoundRect(ctx, x, y, width, height, radius) {
   ctx.lineTo(x, y + radius);
   ctx.quadraticCurveTo(x, y, x + radius, y);
   ctx.closePath();
+}
+
+
+function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
+  if (!text) return;
+  const rules = (window.__highlightRules) || [];
+  if (!rules.length) {
+    ctx.fillStyle = baseColor;
+    ctx.fillText(text, x, y);
+    return;
+  }
+
+  // Build segments
+  const segments = [];
+  let remaining = text;
+  let cursor = 0;
+  const fullLen = text.length;
+
+  while (cursor < fullLen) {
+    let matched = false;
+    for (const rule of rules) {
+      const open = rule.pattern;
+      const close = rule.close || '';
+      if (text.startsWith(open, cursor)) {
+        const endIdx = close ? text.indexOf(close, cursor + open.length) : -1;
+        if (close && endIdx !== -1) {
+          segments.push({ text: text.slice(cursor, endIdx + close.length), color: rule.color });
+          cursor = endIdx + close.length;
+          matched = true;
+          break;
+        } else if (!close) {
+          // Single-char delimiter: color until next whitespace
+          let end = cursor + open.length;
+          while (end < fullLen && text[end] !== ' ') end++;
+          segments.push({ text: text.slice(cursor, end), color: rule.color });
+          cursor = end;
+          matched = true;
+          break;
+        }
+      }
+    }
+    if (!matched) {
+      const startPlain = cursor;
+      let nextSpecial = fullLen;
+      for (const rule of rules) {
+        const idx = text.indexOf(rule.pattern, cursor);
+        if (idx !== -1 && idx < nextSpecial) nextSpecial = idx;
+      }
+      if (nextSpecial > startPlain) {
+        segments.push({ text: text.slice(startPlain, nextSpecial), color: baseColor });
+        cursor = nextSpecial;
+      } else {
+        cursor++;
+      }
+    }
+  }
+
+  // Measure total width for alignment offset
+  let totalWidth = 0;
+  segments.forEach(seg => {
+    totalWidth += ctx.measureText(seg.text).width;
+  });
+
+  let drawX = x;
+  const align = ctx.textAlign;
+  if (align === 'center') drawX = x - totalWidth / 2;
+  else if (align === 'right') drawX = x - totalWidth;
+
+  const savedAlign = ctx.textAlign;
+  ctx.textAlign = 'left';
+  segments.forEach(seg => {
+    ctx.fillStyle = seg.color;
+    ctx.fillText(seg.text, drawX, y);
+    drawX += ctx.measureText(seg.text).width;
+  });
+  ctx.textAlign = savedAlign;
+}
+
+function drawWatermark(ctx, w, h, visuals) {
+  if (!visuals.watermarkEnabled) return;
+  const text = visuals.watermarkText || '@annc19324';
+  const wmX = ((visuals.watermarkX || 50) / 100) * w;
+  const wmY = ((visuals.watermarkY || 50) / 100) * h;
+  const fontSize = visuals.watermarkFontSize || 18;
+  const opacity = (visuals.watermarkOpacity || 60) / 100;
+  const color = visuals.watermarkColor || '#ffffff';
+  const italic = visuals.watermarkItalic ? 'italic ' : '';
+  const bold = visuals.watermarkBold ? 'bold ' : '';
+  const rotate = (visuals.watermarkRotate || 0) * Math.PI / 180;
+  const letterSpacing = visuals.watermarkLetterSpacing || 0;
+
+  ctx.save();
+  ctx.translate(wmX, wmY);
+  ctx.rotate(rotate);
+  ctx.font = `${italic}${bold}${fontSize}px Outfit`;
+  ctx.fillStyle = color.replace(')', `, ${opacity})`).replace('rgb', 'rgba').replace('#', '');
+  // Build rgba from hex
+  const r = parseInt(color.slice(1,3), 16);
+  const g = parseInt(color.slice(3,5), 16);
+  const b = parseInt(color.slice(5,7), 16);
+  ctx.fillStyle = `rgba(${r},${g},${b},${opacity})`;
+  ctx.shadowColor = `rgba(0,0,0,${opacity * 0.5})`;
+  ctx.shadowBlur = 4;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  if (letterSpacing > 0) {
+    // Manual letter spacing
+    let totalW = 0;
+    for (const ch of text) totalW += ctx.measureText(ch).width + letterSpacing;
+    let cx = -totalW / 2;
+    for (const ch of text) {
+      ctx.fillText(ch, cx, 0);
+      cx += ctx.measureText(ch).width + letterSpacing;
+    }
+  } else {
+    ctx.fillText(text, 0, 0);
+  }
+  ctx.restore();
 }
 
 function hexToRgba(hex, alpha) {
