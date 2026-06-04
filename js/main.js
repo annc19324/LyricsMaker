@@ -1,5 +1,21 @@
 /* --- APP INITIALIZATION & EVENT BINDINGS MODULE (MAIN Entry point) --- */
 
+// Global Web Worker Proxy to bypass Cross-Origin Worker restrictions for FFmpeg.js UMD chunks
+if (window.Worker && !window.__workerProxyApplied) {
+  const OriginalWorker = window.Worker;
+  window.Worker = class ProxyWorker extends OriginalWorker {
+    constructor(scriptURL, options) {
+      let url = scriptURL.toString();
+      if (url.indexOf('814.ffmpeg.js') !== -1) {
+        url = window.location.origin + '/js/ffmpeg/814.ffmpeg.js';
+        console.log('[Worker Proxy] Redirected FFmpeg worker chunk to local Same-Origin URL:', url);
+      }
+      super(url, options);
+    }
+  };
+  window.__workerProxyApplied = true;
+}
+
 import { 
   state, lyrics, syncCursorIndex, timeFormatMMSS,
   loadSavedState, saveCurrentState, resetAllState,
@@ -833,20 +849,6 @@ function startVideoExport() {
 
 
 async function convertWebmToMp4(webmBlob) {
-  // Web Worker Proxy to bypass Cross-Origin Worker restrictions for FFmpeg.js
-  if (window.Worker && !window.__workerProxyApplied) {
-    const OriginalWorker = window.Worker;
-    window.Worker = function(scriptURL, options) {
-      let url = scriptURL.toString();
-      if (url.indexOf('814.ffmpeg.js') !== -1) {
-        url = window.location.origin + '/js/ffmpeg/814.ffmpeg.js';
-        console.log('[Worker Proxy] Redirected FFmpeg worker chunk to local Same-Origin URL:', url);
-      }
-      return new OriginalWorker(url, options);
-    };
-    window.Worker.prototype = OriginalWorker.prototype;
-    window.__workerProxyApplied = true;
-  }
   const phaseTitle = document.getElementById('export-phase-title');
   const phaseDesc  = document.getElementById('export-phase-desc');
 
