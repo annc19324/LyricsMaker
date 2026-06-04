@@ -380,7 +380,7 @@ function drawLyrics(w, h, curTime, visuals) {
   for (let i = 0; i < lyrics.length; i++) {
     const t = lyrics[i].time;
     if (t !== null && t !== undefined) {
-      if (i > 0 && t === 0 && lyrics[i - 1].time === 0) {
+      if (i > 0 && t === 0) {
         continue;
       }
       if (curTime >= t) {

@@ -168,17 +168,19 @@ function syncLyricsFromRawText() {
   
   updateLyricsArray(newLyrics);
   
-  // Update sync cursor
+  // Update sync cursor (Find first unsynced line where time is null, undefined, or 0 (if i > 0))
   let foundCursor = false;
   for (let i = 0; i < lyrics.length; i++) {
-    if (lyrics[i].time === null || lyrics[i].time === undefined) {
+    const t = lyrics[i].time;
+    const isUnsynced = (t === null || t === undefined || (i > 0 && t === 0));
+    if (isUnsynced) {
       setSyncCursorIndex(i);
       foundCursor = true;
       break;
     }
   }
   if (!foundCursor) {
-    setSyncCursorIndex(lyrics.length - 1 < 0 ? 0 : lyrics.length - 1);
+    setSyncCursorIndex(0); // Default back to first line instead of last
   }
   
   renderTimingsList();
@@ -341,6 +343,7 @@ function saveState() {
       frameHeight: parseInt(sliderFrameHeight.value) || 150,
       colorFrameBg: colorFrameBg.value,
       mainBorderEnabled: toggleMainBorder()?.checked ?? true,
+      mainFullEnabled:   toggleMainFull()?.checked ?? false,
       spinEnabled:       toggleMainSpin()?.checked ?? true,
       spinSpeed:         parseFloat(sliderSpinSpeed()?.value) || 1.0,
       fogSpeed:          parseFloat(sliderFogSpeed()?.value) || 0.5,
@@ -583,8 +586,8 @@ function handleTimeUpdate() {
   for (let i = 0; i < lyrics.length; i++) {
     const t = lyrics[i].time;
     if (t !== null && t !== undefined) {
-      // If a non-first line has time = 0 and previous also has time = 0, it means it is not yet synchronized.
-      if (i > 0 && t === 0 && lyrics[i - 1].time === 0) {
+      // If any non-first line has time = 0, it is unsynchronized. Skip it.
+      if (i > 0 && t === 0) {
         continue;
       }
       if (cur >= t) {
@@ -1261,7 +1264,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  const newToggles = ["toggle-main-border","toggle-main-spin","toggle-watermark","toggle-wm-italic","toggle-wm-bold"];
+  const newToggles = ["toggle-main-border","toggle-main-spin","toggle-main-full","toggle-watermark","toggle-wm-italic","toggle-wm-bold"];
   newToggles.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener("change", saveState);
