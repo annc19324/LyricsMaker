@@ -949,8 +949,8 @@ async function muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration) {
 
     exportStatusText.innerText = 'Đang load FFmpeg engine...';
     await ffmpeg.load({
-      coreURL: 'js/ffmpeg/ffmpeg-core.js',
-      wasmURL: 'js/ffmpeg/ffmpeg-core.wasm',
+      coreURL: `${location.origin}/js/ffmpeg/ffmpeg-core.js`,
+      wasmURL: `${location.origin}/js/ffmpeg/ffmpeg-core.wasm`,
     });
 
     exportStatusText.innerText = 'Đang nạp file video và âm thanh gốc...';
