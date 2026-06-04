@@ -123,7 +123,7 @@ export function startRenderLoop() {
   tick();
 }
 
-function renderCanvas() {
+export function renderCanvas(forcedTime) {
   if (!canvas || !ctx) return;
   
   const w = canvas.width;
@@ -133,7 +133,7 @@ function renderCanvas() {
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, w, h);
   
-  const curTime = audioPlayer.currentTime;
+  const curTime = forcedTime !== undefined ? forcedTime : audioPlayer.currentTime;
   const visuals = state.visuals[state.activeRatio];
   if (!visuals) return;
   
@@ -213,11 +213,7 @@ function renderCanvas() {
   
   const spinEnabled = visuals.spinEnabled !== false;
   const spinSpeedMult = visuals.spinSpeed || 1.0;
-  if (spinEnabled && !audioPlayer.paused) {
-    // 60fps average step ~ 0.016. Multiplied by speed.
-    mainMediaRotation += 0.012 * spinSpeedMult;
-  }
-  const rotationAngle = mainMediaRotation;
+  const rotationAngle = spinEnabled ? (curTime * 0.72 * spinSpeedMult) : 0;
   
   let mainMediaLoaded = false;
   

@@ -721,6 +721,7 @@ function setupFileZone(zoneId, fileInputId, fileInfoId, mediaTypeKey) {
 }
 
 // Media export WebM
+// Media export WebCodecs + mp4-muxer + FFmpeg.wasm
 function startVideoExport() {
   initAudioContext();
   
@@ -729,18 +730,21 @@ function startVideoExport() {
     return;
   }
   
+  if (typeof VideoEncoder === "undefined") {
+    alert("Trình duyệt của bạn không hỗ trợ WebCodecs API (VideoEncoder). Vui lòng sử dụng Chrome, Edge hoặc Safari mới nhất để xuất video!");
+    return;
+  }
+  
   isExporting = true;
-  exportBlobs = [];
   
   modalExport.classList.remove("hidden");
   exportRunningView.classList.remove("hidden");
   exportSuccessView.classList.add("hidden");
 
-  // Reset phase UI
   const _phTitle = document.getElementById("export-phase-title");
   const _phDesc  = document.getElementById("export-phase-desc");
-  if (_phTitle) _phTitle.innerText = "⏺ Đang ghi hình...";
-  if (_phDesc)  _phDesc.innerText  = "Vui lòng giữ tab này mở. Đang ghi canvas và âm thanh theo thời gian thực.";
+  if (_phTitle) _phTitle.innerText = "⏺ Đang kết xuất video câm...";
+  if (_phDesc)  _phDesc.innerText  = "Tận dụng GPU của thiết bị để render siêu tốc các khung hình.";
 
   audioPlayer.pause();
   btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
@@ -749,180 +753,225 @@ function startVideoExport() {
   const trimStart = parseTimeToSeconds(state.audioStart) || 0;
   const trimEnd = state.audioEnd === "auto" ? (audioPlayer.duration || 60) : parseTimeToSeconds(state.audioEnd);
   const totalDuration = trimEnd - trimStart;
-  
-  audioPlayer.currentTime = trimStart;
+  const fps = 30;
+  const totalFrames = Math.floor(totalDuration * fps);
   
   // Mute physical speakers
   if (speakerGainNode) {
     speakerGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
   }
-  
-  const canvasStream = canvas.captureStream(30);
-  const audioStream = audioDestination.stream;
-  
-  const combinedStream = new MediaStream();
-  canvasStream.getVideoTracks().forEach(track => combinedStream.addTrack(track));
-  audioStream.getAudioTracks().forEach(track => combinedStream.addTrack(track));
-  
-  let options = { mimeType: "video/webm;codecs=vp9,opus" };
-  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-    options = { mimeType: "video/webm;codecs=vp8,opus" };
+
+  // Tắt render loop bình thường để tránh tranh chấp vẽ lên canvas
+  if (window.animationFrameId) {
+    cancelAnimationFrame(window.animationFrameId);
+    window.animationFrameId = null;
   }
-  if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-    options = { mimeType: "video/webm" };
-  }
-  
-  try {
-    mediaRecorder = new MediaRecorder(combinedStream, options);
-  } catch (e) {
-    console.error(e);
-    alert("MediaRecorder not supported.");
-    isExporting = false;
-    modalExport.classList.add("hidden");
-    return;
-  }
-  
-  mediaRecorder.ondataavailable = (event) => {
-    if (event.data && event.data.size > 0) exportBlobs.push(event.data);
-  };
-  
-  mediaRecorder.onstop = async () => {
-    if (speakerGainNode) speakerGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-    const webmBlob = new Blob(exportBlobs, { type: "video/webm" });
-    // Phase 2: Auto-convert WebM -> MP4 via ffmpeg.wasm
-    await convertWebmToMp4(webmBlob);
-    isExporting = false;
-  };
-  
-  if (bgVideo && bgMediaType === "video") {
-    bgVideo.currentTime = 0;
-    bgVideo.play();
-  }
-  if (mainVideo && mainMediaType === "video") {
-    mainVideo.currentTime = 0;
-    mainVideo.play();
-  }
-  
-  mediaRecorder.start(100);
-  audioPlayer.play();
-  
-  audioPlayer.ontimeupdate = () => {
-    if (!isExporting) {
-      audioPlayer.ontimeupdate = handleTimeUpdate;
-      handleTimeUpdate();
-      return;
+
+  setTimeout(async () => {
+    try {
+      // 1. Khởi tạo Mp4Muxer
+      const muxer = new Mp4Muxer.Muxer({
+        target: new Mp4Muxer.ArrayBufferTarget(),
+        video: {
+          codec: 'avc',
+          width: canvas.width,
+          height: canvas.height
+        },
+        fastStart: 'in-memory'
+      });
+
+      // 2. Khởi tạo VideoEncoder
+      let encoderError = null;
+      const encoder = new VideoEncoder({
+        output: (chunk, metadata) => {
+          muxer.addVideoChunk(chunk, metadata);
+        },
+        error: (e) => {
+          console.error('[VideoEncoder Error]', e);
+          encoderError = e;
+        }
+      });
+
+      const config = {
+        codec: 'avc1.4d002a', // H.264 Main Profile, Level 4.2
+        width: canvas.width,
+        height: canvas.height,
+        bitrate: 4_000_000, // 4 Mbps
+        framerate: fps,
+        hardwareAcceleration: 'prefer-hardware'
+      };
+      
+      encoder.configure(config);
+
+      // 3. Vòng lặp render offline
+      for (let i = 0; i < totalFrames; i++) {
+        if (!isExporting || encoderError) break;
+
+        const timePos = trimStart + (i / fps);
+        
+        // Vẽ canvas tại mốc thời gian timePos
+        renderCanvas(timePos);
+
+        // Trích xuất bitmap
+        const bitmap = await createImageBitmap(canvas);
+        const timestampUs = Math.round((i / fps) * 1_000_000);
+        const frame = new VideoFrame(bitmap, { timestamp: timestampUs });
+
+        const isKeyframe = (i % 30 === 0);
+        encoder.encode(frame, { keyFrame: isKeyframe });
+
+        frame.close();
+        bitmap.close();
+
+        // Kiểm soát hàng đợi để tránh tràn RAM
+        if (encoder.encodeQueueSize > 5) {
+          await new Promise(resolve => {
+            const check = () => {
+              if (encoder.encodeQueueSize <= 2) {
+                resolve();
+              } else {
+                setTimeout(check, 5);
+              }
+            };
+            check();
+          });
+        }
+
+        // Cập nhật tiến độ UI
+        const progress = (i / totalFrames) * 100;
+        exportProgressFill.style.width = `${progress.toFixed(1)}%`;
+        exportProgressFill.innerText = `${Math.floor(progress)}%`;
+        exportStatusText.innerText = `Render khung hình: ${i}/${totalFrames} (${(i / fps).toFixed(1)}s / ${totalDuration.toFixed(1)}s)`;
+      }
+
+      if (encoderError) {
+        throw new Error('VideoEncoder failed: ' + encoderError.message);
+      }
+
+      if (!isExporting) {
+        encoder.close();
+        startRenderLoop();
+        return;
+      }
+
+      exportStatusText.innerText = "Đang hoàn thiện tệp tin video câm...";
+      await encoder.flush();
+      encoder.close();
+      
+      muxer.finalize();
+      const { buffer } = muxer.target;
+      const videoCleanBlob = new Blob([buffer], { type: 'video/mp4' });
+
+      // Tiến hành ghép nhạc
+      await muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration);
+
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Xuất video thất bại: ' + err.message);
+      isExporting = false;
+      modalExport.classList.add("hidden");
+    } finally {
+      startRenderLoop();
+      if (speakerGainNode) {
+        speakerGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+      }
     }
-    
-    const curr = audioPlayer.currentTime;
-    if (curr >= trimEnd || audioPlayer.ended) {
-      audioPlayer.pause();
-      mediaRecorder.stop();
-      if (bgVideo) bgVideo.pause();
-      if (mainVideo) mainVideo.pause();
-      audioPlayer.ontimeupdate = handleTimeUpdate;
-      return;
-    }
-    
-    const elapsed = curr - trimStart;
-    const progress = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100));
-    exportProgressFill.style.width = `${progress.toFixed(1)}%`;
-    exportProgressFill.innerText = `${Math.floor(progress)}%`;
-    exportStatusText.innerText = `Đang ghi hình và âm thanh: ${elapsed.toFixed(1)}s / ${totalDuration.toFixed(1)}s`;
-  };
+  }, 100);
 }
 
-
-async function convertWebmToMp4(webmBlob) {
+async function muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration) {
   const phaseTitle = document.getElementById('export-phase-title');
   const phaseDesc  = document.getElementById('export-phase-desc');
 
-  if (phaseTitle) phaseTitle.innerText = '\u23f3 \u0110ang chuy\u1ec3n \u0111\u1ed5i sang MP4...';
-  if (phaseDesc)  phaseDesc.innerText  = 'Vui l\u00f2ng ch\u1edd. FFmpeg \u0111ang encode MP4 (H.264) ngay trong tr\u00ecnh duy\u1ec7t.';
+  if (phaseTitle) phaseTitle.innerText = '⚙️ Đang ghép âm thanh (Muxing)...';
+  if (phaseDesc)  phaseDesc.innerText  = 'Đang ghép luồng âm thanh gốc vào video. Quá trình này không re-encode nên cực kỳ nhanh.';
   exportProgressFill.style.width = '0%';
   exportProgressFill.innerText   = '0%';
-  exportStatusText.innerText     = '\u0110ang t\u1ea3i FFmpeg engine...';
+  exportStatusText.innerText     = 'Khởi động FFmpeg engine...';
 
   try {
     const FFmpegLib  = window.FFmpegWASM;
     const FFmpegUtil = window.FFmpegUtil;
 
     if (!FFmpegLib || !FFmpegUtil) {
-      throw new Error('FFmpeg.wasm ch\u01b0a load xong. Vui l\u00f2ng th\u1eed l\u1ea1i sau v\u00e0i gi\u00e2y.');
+      throw new Error('FFmpeg.wasm chưa được tải. Hãy thử lại.');
     }
 
     const { FFmpeg }    = FFmpegLib;
     const { fetchFile } = FFmpegUtil;
     const ffmpeg = new FFmpeg();
 
-    ffmpeg.on('log', ({ message }) => { console.log('[FFmpeg]', message); });
-
-    ffmpeg.on('progress', ({ progress }) => {
-      const pct = Math.round(progress * 100);
-      exportProgressFill.style.width = pct + '%';
-      exportProgressFill.innerText   = pct + '%';
-      exportStatusText.innerText     = '\u2699\ufe0f \u0110ang encode MP4: ' + pct + '%';
-    });
-
-    exportStatusText.innerText = '\u0110ang load FFmpeg engine (l\u1ea7n \u0111\u1ea7u ~10-20s)...';
-
+    ffmpeg.on('log', ({ message }) => { console.log('[FFmpeg Mux]', message); });
+    
+    exportStatusText.innerText = 'Đang load FFmpeg engine...';
     await ffmpeg.load({
       coreURL: 'js/ffmpeg/ffmpeg-core.js',
       wasmURL: 'js/ffmpeg/ffmpeg-core.wasm',
     });
 
-    exportStatusText.innerText = 'FFmpeg s\u1eb5n s\u00e0ng, \u0111ang encode...';
+    exportStatusText.innerText = 'Đang nạp file video và âm thanh gốc...';
+    await ffmpeg.writeFile('video_clean.mp4', await fetchFile(videoCleanBlob));
 
-    await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+    if (currentAudioFile) {
+      await ffmpeg.writeFile('audio_source', await fetchFile(currentAudioFile));
+    } else {
+      const audioBlob = await fetch(audioPlayer.src).then(r => r.blob());
+      await ffmpeg.writeFile('audio_source', await fetchFile(audioBlob));
+    }
 
+    exportStatusText.innerText = 'Đang ghép luồng video và audio (no re-encode)...';
+    
     await ffmpeg.exec([
-      '-i',        'input.webm',
-      '-c:v',      'libx264',
-      '-preset',   'fast',
-      '-crf',      '23',
-      '-c:a',      'aac',
-      '-b:a',      '192k',
+      '-i', 'video_clean.mp4',
+      '-ss', trimStart.toString(),
+      '-t', totalDuration.toString(),
+      '-i', 'audio_source',
+      '-map', '0:v',
+      '-map', '1:a',
+      '-c:v', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-shortest',
       '-movflags', '+faststart',
-      'output.mp4'
+      'output_muxed.mp4'
     ]);
 
-    const mp4Data = await ffmpeg.readFile('output.mp4');
+    exportStatusText.innerText = 'Đang xuất tệp tin MP4 hoàn tất...';
+    const mp4Data = await ffmpeg.readFile('output_muxed.mp4');
     const mp4Blob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
     const mp4Url  = URL.createObjectURL(mp4Blob);
 
     const safeName = (state.songTitle || 'lyrics-maker').toLowerCase().replace(/[^a-z0-9]/g, '-');
     downloadVideoLink.href      = mp4Url;
     downloadVideoLink.download  = safeName + '.mp4';
-    downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> T\u1ea3i Video (.mp4)';
+    downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> Tải Video (.mp4)';
 
-    await ffmpeg.deleteFile('input.webm');
-    await ffmpeg.deleteFile('output.mp4');
+    await ffmpeg.deleteFile('video_clean.mp4');
+    await ffmpeg.deleteFile('audio_source');
+    await ffmpeg.deleteFile('output_muxed.mp4');
 
     exportRunningView.classList.add('hidden');
     exportSuccessView.classList.remove('hidden');
-    showToast('Xu\u1ea5t MP4 th\u00e0nh c\u00f4ng! \ud83c\udf89', 'success', 4000);
+    showToast('Xuất MP4 thành công! 🎉', 'success', 4000);
 
   } catch (err) {
-    console.error('FFmpeg convert error:', err);
+    console.error('FFmpeg muxing error:', err);
+    if (phaseTitle) phaseTitle.innerText = '⚠️ Lỗi ghép âm thanh';
+    if (phaseDesc)  phaseDesc.innerText  = 'Lỗi: ' + err.message + '. Bạn có thể tải video không tiếng để tự ghép.';
 
-    if (phaseTitle) phaseTitle.innerText = '\u26a0\ufe0f Kh\u00f4ng th\u1ec3 convert sang MP4';
-    if (phaseDesc)  phaseDesc.innerText  = 'L\u1ed7i: ' + err.message + '. B\u1ea1n c\u00f3 th\u1ec3 t\u1ea3i file WebM thay th\u1ebf.';
-
-    const webmUrl  = URL.createObjectURL(webmBlob);
+    const cleanUrl = URL.createObjectURL(videoCleanBlob);
     const safeName = (state.songTitle || 'lyrics-maker').toLowerCase().replace(/[^a-z0-9]/g, '-');
-    downloadVideoLink.href      = webmUrl;
-    downloadVideoLink.download  = safeName + '.webm';
-    downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> T\u1ea3i Video (.webm)';
+    downloadVideoLink.href      = cleanUrl;
+    downloadVideoLink.download  = safeName + '-no-audio.mp4';
+    downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> Tải Video câm (.mp4)';
 
     exportRunningView.classList.add('hidden');
     exportSuccessView.classList.remove('hidden');
-    showToast('Kh\u00f4ng convert \u0111\u01b0\u1ee3c MP4, \u0111ang t\u1ea3i WebM thay th\u1ebf.', 'warning', 5000);
+    showToast('Ghép âm thanh thất bại, tải file video câm.', 'warning', 5000);
   }
 }
 
 function cancelVideoExport() {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-  }
   audioPlayer.pause();
   if (speakerGainNode) speakerGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
   audioPlayer.ontimeupdate = handleTimeUpdate;
