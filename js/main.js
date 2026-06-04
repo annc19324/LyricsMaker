@@ -137,6 +137,7 @@ let isProgressBarDragging = false;
 let isExporting = false;
 let mediaRecorder = null;
 let exportBlobs = [];
+let currentAudioFile = null;
 
 // --- Functions ---
 
@@ -702,6 +703,7 @@ function setupFileZone(zoneId, fileInputId, fileInfoId, mediaTypeKey) {
       audioPlayer.src = url;
       audioPlayer.load();
       audioPlayer.currentTime = 0;
+      currentAudioFile = file;
     } else if (mediaTypeKey === "bg_image") {
       bgImage.src = url;
     } else if (mediaTypeKey === "bg_video") {
@@ -879,6 +881,45 @@ function startVideoExport() {
   }, 100);
 }
 
+function getAudioExtension(fileOrBlob) {
+  if (fileOrBlob && fileOrBlob.name) {
+    const idx = fileOrBlob.name.lastIndexOf('.');
+    if (idx !== -1) return fileOrBlob.name.substring(idx);
+  }
+  if (fileOrBlob && fileOrBlob.type) {
+    if (fileOrBlob.type.includes('mpeg') || fileOrBlob.type.includes('mp3')) return '.mp3';
+    if (fileOrBlob.type.includes('wav')) return '.wav';
+    if (fileOrBlob.type.includes('ogg')) return '.ogg';
+    if (fileOrBlob.type.includes('m4a') || fileOrBlob.type.includes('mp4')) return '.m4a';
+    if (fileOrBlob.type.includes('aac')) return '.aac';
+  }
+  return '.mp3'; // fallback
+}
+
+async function fetchFile(fileOrBlobOrUrl) {
+  if (typeof fileOrBlobOrUrl === 'string') {
+    const res = await fetch(fileOrBlobOrUrl);
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  if (fileOrBlobOrUrl instanceof URL) {
+    const res = await fetch(fileOrBlobOrUrl);
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  if (fileOrBlobOrUrl instanceof File || fileOrBlobOrUrl instanceof Blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        resolve(new Uint8Array(reader.result));
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(fileOrBlobOrUrl);
+    });
+  }
+  return new Uint8Array();
+}
+
 async function muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration) {
   const phaseTitle = document.getElementById('export-phase-title');
   const phaseDesc  = document.getElementById('export-phase-desc');
@@ -891,18 +932,21 @@ async function muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration) {
 
   try {
     const FFmpegLib  = window.FFmpegWASM;
-    const FFmpegUtil = window.FFmpegUtil;
 
-    if (!FFmpegLib || !FFmpegUtil) {
+    if (!FFmpegLib) {
       throw new Error('FFmpeg.wasm chưa được tải. Hãy thử lại.');
     }
 
-    const { FFmpeg }    = FFmpegLib;
-    const { fetchFile } = FFmpegUtil;
+    const { FFmpeg } = FFmpegLib;
     const ffmpeg = new FFmpeg();
 
     ffmpeg.on('log', ({ message }) => { console.log('[FFmpeg Mux]', message); });
-    
+    ffmpeg.on('progress', ({ progress }) => {
+      const pct = Math.round(progress * 100);
+      exportProgressFill.style.width = pct + '%';
+      exportProgressFill.innerText = pct + '%';
+    });
+
     exportStatusText.innerText = 'Đang load FFmpeg engine...';
     await ffmpeg.load({
       coreURL: 'js/ffmpeg/ffmpeg-core.js',
@@ -912,33 +956,52 @@ async function muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration) {
     exportStatusText.innerText = 'Đang nạp file video và âm thanh gốc...';
     await ffmpeg.writeFile('video_clean.mp4', await fetchFile(videoCleanBlob));
 
+    let audioExt = '.mp3';
+    let audioData = null;
     if (currentAudioFile) {
-      await ffmpeg.writeFile('audio_source', await fetchFile(currentAudioFile));
+      audioData = currentAudioFile;
+      audioExt = getAudioExtension(currentAudioFile);
     } else {
+      // Nhạc demo được tổng hợp dưới dạng WAV blob
       const audioBlob = await fetch(audioPlayer.src).then(r => r.blob());
-      await ffmpeg.writeFile('audio_source', await fetchFile(audioBlob));
+      audioData = audioBlob;
+      // blob: URL không có tên — nhạc demo là WAV, force .wav
+      audioExt = audioPlayer.src.startsWith('blob:') ? '.wav' : getAudioExtension(audioBlob);
     }
+    const audioFileName = 'audio_source' + audioExt;
+    await ffmpeg.writeFile(audioFileName, await fetchFile(audioData));
 
     exportStatusText.innerText = 'Đang ghép luồng video và audio (no re-encode)...';
     
     await ffmpeg.exec([
+      // Input 1: video âm (không cần seek, đã đúng duration)
       '-i', 'video_clean.mp4',
+      // Input 2: audio gốc, trim theo audioStart và duration
       '-ss', trimStart.toString(),
-      '-t', totalDuration.toString(),
-      '-i', 'audio_source',
-      '-map', '0:v',
-      '-map', '1:a',
+      '-t',  totalDuration.toString(),
+      '-i',  audioFileName,
+      // Map streams
+      '-map', '0:v:0',
+      '-map', '1:a:0',
+      // Video: copy không re-encode
       '-c:v', 'copy',
+      // Audio: encode sang AAC
       '-c:a', 'aac',
       '-b:a', '192k',
+      '-ac',  '2',
+      // Giới hạn output theo stream ngắn nhất
       '-shortest',
+      '-avoid_negative_ts', 'make_zero',
       '-movflags', '+faststart',
       'output_muxed.mp4'
     ]);
 
+
     exportStatusText.innerText = 'Đang xuất tệp tin MP4 hoàn tất...';
     const mp4Data = await ffmpeg.readFile('output_muxed.mp4');
-    const mp4Blob = new Blob([mp4Data.buffer], { type: 'video/mp4' });
+    // Uint8Array.buffer có thể lớn hơn data thực — cần slice đúng
+    const mp4Buffer = mp4Data.buffer.slice(mp4Data.byteOffset, mp4Data.byteOffset + mp4Data.byteLength);
+    const mp4Blob = new Blob([mp4Buffer], { type: 'video/mp4' });
     const mp4Url  = URL.createObjectURL(mp4Blob);
 
     const safeName = (state.songTitle || 'lyrics-maker').toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -947,7 +1010,7 @@ async function muxAudioWithFFmpeg(videoCleanBlob, trimStart, totalDuration) {
     downloadVideoLink.innerHTML = '<i class="fa-solid fa-download"></i> Tải Video (.mp4)';
 
     await ffmpeg.deleteFile('video_clean.mp4');
-    await ffmpeg.deleteFile('audio_source');
+    await ffmpeg.deleteFile(audioFileName);
     await ffmpeg.deleteFile('output_muxed.mp4');
 
     exportRunningView.classList.add('hidden');
@@ -1165,6 +1228,7 @@ document.addEventListener("DOMContentLoaded", () => {
       setAudioFileLoaded(false);
       audioPlayer.src = defaultAudioUrl;
       audioPlayer.load();
+      currentAudioFile = null;
       document.getElementById("audio-file-info").innerText = "Đang dùng nhạc demo mặc định";
       inputAudioStart.value = 0;
       inputAudioEnd.value = "auto";
@@ -1478,6 +1542,7 @@ async function initFileStore() {
       audioPlayer.src = url;
       audioPlayer.load();
       setAudioFileLoaded(true);
+      currentAudioFile = audioBlob;
       document.getElementById('audio-file-info').innerText = '✅ Nhạc đã lưu (từ phiên trước)';
     }
     const bgImgBlob = await loadFileFromIDB('bg_image');
