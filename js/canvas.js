@@ -349,9 +349,10 @@ function drawDefaultVinyl(ctx, x, y, size, rotation) {
 
 function drawFog(w, h, intensity, visuals) {
   ctx.save();
+  const fogSpeedMult = visuals.fogSpeed !== undefined ? visuals.fogSpeed : 0.5;
   fogParticles.forEach(p => {
-    p.x += p.dx;
-    p.y += p.dy;
+    p.x += p.dx * (fogSpeedMult / 0.5);
+    p.y += p.dy * (fogSpeedMult / 0.5);
     
     if (p.x * (w / 100) > w + p.r) p.x = -p.r / (w / 100);
     if (p.y * (h / 100) > h + p.r) p.y = -p.r / (h / 100);
@@ -490,7 +491,7 @@ function drawLyrics(w, h, curTime, visuals) {
         baseClr = visuals.colorLyricActive;
       }
       
-      drawHighlightedText(ctx, subText, textX, subLineY, item.isActive ? fontSize * scale : fontSize, baseClr);
+      drawHighlightedText(ctx, subText, textX, subLineY, item.isActive ? fontSize * scale : fontSize, baseClr, item.isActive);
 
       // Sequential Karaoke calculation for multi-line lyrics
       if (item.isActive && karaokeEnabled && lyrics[item.index].time !== null) {
@@ -534,7 +535,7 @@ function drawLyrics(w, h, curTime, visuals) {
         );
         ctx.clip();
         
-        drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive);
+        drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive, true);
         ctx.restore();
       }
     });
@@ -558,7 +559,7 @@ function drawRoundRect(ctx, x, y, width, height, radius) {
 }
 
 
-function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
+function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, shouldHighlight = true) {
   if (!text) return;
   const rules = (window.__highlightRules) || [];
   if (!rules.length) {
@@ -582,7 +583,7 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
         if (close && endIdx !== -1) {
           // Bóc tách nội dung ở giữa (bỏ kí tự đặc biệt)
           const content = text.slice(cursor + open.length, endIdx);
-          segments.push({ text: content, color: rule.color });
+          segments.push({ text: content, color: shouldHighlight ? rule.color : baseColor });
           cursor = endIdx + close.length;
           matched = true;
           break;
@@ -592,7 +593,7 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor) {
           while (end < fullLen && text[end] !== ' ') end++;
           // Bóc tách nội dung (bỏ kí tự đặc biệt)
           const content = text.slice(cursor + open.length, end);
-          segments.push({ text: content, color: rule.color });
+          segments.push({ text: content, color: shouldHighlight ? rule.color : baseColor });
           cursor = end;
           matched = true;
           break;
