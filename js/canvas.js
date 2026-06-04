@@ -292,7 +292,7 @@ function renderCanvas() {
   }
   
   // 6. Draw Watermark on main media area
-  drawWatermark(ctx, w, h, visuals);
+  drawWatermark(ctx, w, h, visuals, mainMediaOffset);
 
   // 7. Draw Lyrics
   drawLyrics(w, h, curTime, visuals);
@@ -641,11 +641,15 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, shouldHighlig
   ctx.textAlign = savedAlign;
 }
 
-function drawWatermark(ctx, w, h, visuals) {
+function drawWatermark(ctx, w, h, visuals, mainMediaOffset) {
   if (!visuals.watermarkEnabled) return;
   const text = visuals.watermarkText || '@annc19324';
-  const wmX = ((visuals.watermarkX || 50) / 100) * w;
-  const wmY = ((visuals.watermarkY || 50) / 100) * h;
+  let wmX = ((visuals.watermarkX || 50) / 100) * w;
+  let wmY = ((visuals.watermarkY || 50) / 100) * h;
+  if (visuals.watermarkFloatEnabled && mainMediaOffset) {
+    wmX += mainMediaOffset.x;
+    wmY += mainMediaOffset.y;
+  }
   const fontSize = visuals.watermarkFontSize || 18;
   const opacity = (visuals.watermarkOpacity || 60) / 100;
   const color = visuals.watermarkColor || '#ffffff';

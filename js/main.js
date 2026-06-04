@@ -107,6 +107,7 @@ const btnClearTimings = document.getElementById("btn-clear-timings");
 const toggleMainBorder  = () => document.getElementById("toggle-main-border");
 const toggleMainSpin    = () => document.getElementById("toggle-main-spin");
 const toggleMainFull    = () => document.getElementById("toggle-main-full");
+const toggleWmFloat     = () => document.getElementById("toggle-wm-float");
 const sliderLineSpacing = () => document.getElementById("slider-line-spacing");
 const toggleKaraoke     = () => document.getElementById("toggle-karaoke");
 const toggleTransition  = () => document.getElementById("toggle-transition");
@@ -524,6 +525,7 @@ function applyStateToUI() {
     if (sliderSpinSpeed())   { sliderSpinSpeed().value   = visuals.spinSpeed || 1.0; const el = document.getElementById("val-spin-speed"); if(el) el.innerText = (visuals.spinSpeed||1.0)+"x"; }
     if (sliderFogSpeed())    { sliderFogSpeed().value    = visuals.fogSpeed || 0.5;  const el = document.getElementById("val-fog-speed");  if(el) el.innerText = (visuals.fogSpeed||0.5)+"x"; }
     if (toggleWatermark())   toggleWatermark().checked   = visuals.watermarkEnabled || false;
+    if (toggleWmFloat())     toggleWmFloat().checked     = visuals.watermarkFloatEnabled || false;
     if (inputWatermarkText()) inputWatermarkText().value = visuals.watermarkText || "@annc19324";
     if (sliderWmX())         { sliderWmX().value         = visuals.watermarkX || 50;        const el=document.getElementById("val-wm-x");       if(el) el.innerText=(visuals.watermarkX||50)+"%"; }
     if (sliderWmY())         { sliderWmY().value         = visuals.watermarkY || 50;        const el=document.getElementById("val-wm-y");       if(el) el.innerText=(visuals.watermarkY||50)+"%"; }
@@ -1033,7 +1035,8 @@ document.addEventListener("DOMContentLoaded", () => {
     { el: sliderLineSpacing(), labelId: "val-line-spacing", suffix: "x" },
     { el: toggleKaraoke() },
     { el: toggleTransition() },
-    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" }
+    { el: sliderTransitionSpeed(), labelId: "val-transition-speed", suffix: "x" },
+    { el: toggleWmFloat() }
   ];
   
   dynamicInputs.forEach(item => {
