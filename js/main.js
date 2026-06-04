@@ -106,6 +106,7 @@ const btnClearTimings = document.getElementById("btn-clear-timings");
 // New feature references (added)
 const toggleMainBorder  = () => document.getElementById("toggle-main-border");
 const toggleMainSpin    = () => document.getElementById("toggle-main-spin");
+const toggleMainFull    = () => document.getElementById("toggle-main-full");
 const sliderSpinSpeed   = () => document.getElementById("slider-spin-speed");
 const sliderFogSpeed    = () => document.getElementById("slider-fog-speed");
 const toggleWatermark   = () => document.getElementById("toggle-watermark");
@@ -491,6 +492,7 @@ function applyStateToUI() {
   if (visuals) {
     if (toggleMainBorder())  toggleMainBorder().checked  = visuals.mainBorderEnabled !== false;
     if (toggleMainSpin())    toggleMainSpin().checked    = visuals.spinEnabled !== false;
+    if (toggleMainFull())    toggleMainFull().checked    = visuals.mainFullEnabled || false;
     if (sliderSpinSpeed())   { sliderSpinSpeed().value   = visuals.spinSpeed || 1.0; const el = document.getElementById("val-spin-speed"); if(el) el.innerText = (visuals.spinSpeed||1.0)+"x"; }
     if (sliderFogSpeed())    { sliderFogSpeed().value    = visuals.fogSpeed || 0.5;  const el = document.getElementById("val-fog-speed");  if(el) el.innerText = (visuals.fogSpeed||0.5)+"x"; }
     if (toggleWatermark())   toggleWatermark().checked   = visuals.watermarkEnabled || false;

@@ -220,24 +220,54 @@ function renderCanvas() {
   let mainMediaLoaded = false;
   
   ctx.save();
-  ctx.beginPath();
-  if (visuals.mainShape === "circle") {
-    ctx.arc(mainXPixel, mainYPixel, size / 2, 0, Math.PI * 2);
-  } else {
-    ctx.rect(mainXPixel - size / 2, mainYPixel - size / 2, size, size);
-  }
-  ctx.clip();
+  const isFull = visuals.mainFullEnabled === true;
   
-  if (mainMediaType === "image" && mainImage.src) {
-    mainMediaLoaded = true;
-    ctx.translate(mainXPixel, mainYPixel);
-    ctx.rotate(rotationAngle);
-    drawCover(ctx, mainImage, -size / 2, -size / 2, size, size);
-  } else if (mainMediaType === "video" && mainVideo.src && !mainVideo.paused && mainVideo.readyState >= 2) {
-    mainMediaLoaded = true;
-    ctx.translate(mainXPixel, mainYPixel);
-    ctx.rotate(rotationAngle);
-    drawCover(ctx, mainVideo, -size / 2, -size / 2, size, size);
+  if (isFull) {
+    // Draw full aspect ratio (no clip)
+    if (mainMediaType === "image" && mainImage.src) {
+      mainMediaLoaded = true;
+      const imgW = mainImage.naturalWidth || size;
+      const imgH = mainImage.naturalHeight || size;
+      const scale = size / Math.max(imgW, imgH);
+      const dw = imgW * scale;
+      const dh = imgH * scale;
+      
+      ctx.translate(mainXPixel, mainYPixel);
+      ctx.rotate(rotationAngle);
+      ctx.drawImage(mainImage, -dw / 2, -dh / 2, dw, dh);
+    } else if (mainMediaType === "video" && mainVideo.src && !mainVideo.paused && mainVideo.readyState >= 2) {
+      mainMediaLoaded = true;
+      const vidW = mainVideo.videoWidth || size;
+      const vidH = mainVideo.videoHeight || size;
+      const scale = size / Math.max(vidW, vidH);
+      const dw = vidW * scale;
+      const dh = vidH * scale;
+      
+      ctx.translate(mainXPixel, mainYPixel);
+      ctx.rotate(rotationAngle);
+      ctx.drawImage(mainVideo, -dw / 2, -dh / 2, dw, dh);
+    }
+  } else {
+    // Draw inside circle/rect clip shape
+    ctx.beginPath();
+    if (visuals.mainShape === "circle") {
+      ctx.arc(mainXPixel, mainYPixel, size / 2, 0, Math.PI * 2);
+    } else {
+      ctx.rect(mainXPixel - size / 2, mainYPixel - size / 2, size, size);
+    }
+    ctx.clip();
+    
+    if (mainMediaType === "image" && mainImage.src) {
+      mainMediaLoaded = true;
+      ctx.translate(mainXPixel, mainYPixel);
+      ctx.rotate(rotationAngle);
+      drawCover(ctx, mainImage, -size / 2, -size / 2, size, size);
+    } else if (mainMediaType === "video" && mainVideo.src && !mainVideo.paused && mainVideo.readyState >= 2) {
+      mainMediaLoaded = true;
+      ctx.translate(mainXPixel, mainYPixel);
+      ctx.rotate(rotationAngle);
+      drawCover(ctx, mainVideo, -size / 2, -size / 2, size, size);
+    }
   }
   ctx.restore();
   
