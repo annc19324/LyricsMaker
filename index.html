@@ -16,16 +16,18 @@
   <script>
     if (window.Worker && !window.__workerProxyApplied) {
       const OriginalWorker = window.Worker;
-      window.Worker = class ProxyWorker extends OriginalWorker {
-        constructor(scriptURL, options) {
-          let url = scriptURL.toString();
-          if (url.indexOf('814.ffmpeg.js') !== -1) {
+      window.Worker = function ProxyWorker(scriptURL, options) {
+        let url = scriptURL;
+        if (scriptURL) {
+          let urlStr = scriptURL.toString();
+          if (urlStr.indexOf('814.ffmpeg.js') !== -1) {
             url = window.location.origin + '/js/ffmpeg/814.ffmpeg.js';
             console.log('[Worker Proxy] Redirected FFmpeg worker chunk to local Same-Origin URL:', url);
           }
-          super(url, options);
         }
+        return new OriginalWorker(url, options);
       };
+      window.Worker.prototype = OriginalWorker.prototype;
       window.__workerProxyApplied = true;
     }
   </script>
