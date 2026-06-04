@@ -432,10 +432,16 @@ function drawLyrics(w, h, curTime, visuals) {
     
     subLines.forEach((subText, subIdx) => {
       const subLineY = lineY + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
-      const baseClr = item.isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, 0.4);
+      
+      const karaokeSpeedMult = visuals.karaokeSpeed !== undefined ? visuals.karaokeSpeed : 1.0;
+      let baseClr = item.isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, 0.4);
+      if (item.isActive && karaokeSpeedMult === 0) {
+        baseClr = visuals.colorLyricActive;
+      }
+      
       drawHighlightedText(ctx, subText, textX, subLineY, item.isActive ? fontSize * scale : fontSize, baseClr);
 
-      if (item.isActive && lyrics[item.index].time !== null) {
+      if (item.isActive && karaokeSpeedMult > 0 && lyrics[item.index].time !== null) {
         const textWidth = ctx.measureText(subText).width;
         
         const tStart = lyrics[item.index].time;
@@ -450,7 +456,6 @@ function drawLyrics(w, h, curTime, visuals) {
         const lineDuration = tEnd - tStart;
         const elapsed = curTime - tStart;
         
-        const karaokeSpeedMult = visuals.karaokeSpeed || 1.0;
         let progress = lineDuration > 0 ? (elapsed / lineDuration) * karaokeSpeedMult : 0;
         progress = Math.max(0, Math.min(1, progress));
         
