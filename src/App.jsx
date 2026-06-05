@@ -124,6 +124,14 @@ export default function App() {
       const audioEnd = st.audioEnd;
       const dur = audio.duration || 60;
       const end = audioEnd === 'auto' ? dur : parseFloat(audioEnd);
+
+      // ── Enforce trim start boundary ──────────────────────────────────────
+      if (audio.currentTime < audioStart) {
+        audio.currentTime = audioStart;
+        return;
+      }
+
+      // ── Enforce trim end boundary ────────────────────────────────────────
       if (audio.currentTime >= end) {
         audio.pause();
         audio.currentTime = audioStart;
@@ -147,7 +155,12 @@ export default function App() {
     };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
-    return () => audio.removeEventListener('timeupdate', onTimeUpdate);
+    // Also update display when audio metadata loads (so trim duration shows correctly)
+    audio.addEventListener('loadedmetadata', onTimeUpdate);
+    return () => {
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('loadedmetadata', onTimeUpdate);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Mark timing ───────────────────────────────────────────────────────────
@@ -186,8 +199,15 @@ export default function App() {
         const audio = audioRef.current;
         if (!audio) return;
         initAudioContext();
-        if (audio.paused) { audio.play(); PlaybackControls._setIsPlaying?.(true); }
-        else { audio.pause(); PlaybackControls._setIsPlaying?.(false); }
+        if (audio.paused) {
+          const start = parseFloat(st.audioStart) || 0;
+          if (audio.currentTime < start) audio.currentTime = start;
+          audio.play();
+          PlaybackControls._setIsPlaying?.(true);
+        } else {
+          audio.pause();
+          PlaybackControls._setIsPlaying?.(false);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);

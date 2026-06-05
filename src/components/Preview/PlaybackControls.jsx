@@ -38,6 +38,9 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     const audio = audioRef.current;
     if (!audio) return;
     if (audio.paused) {
+      // Jump to trim start if behind it
+      const start = parseFloat(useAppStore.getState().audioStart) || 0;
+      if (audio.currentTime < start) audio.currentTime = start;
       audio.play();
       setIsPlaying(true);
       if (mediaRefs?.bgVideo?.current) mediaRefs.bgVideo.current.play().catch(() => {});
