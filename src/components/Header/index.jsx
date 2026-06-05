@@ -6,6 +6,7 @@ import useAppStore from '../../store/useAppStore';
 
 export default function Header({ onReset, onExport }) {
   const previewZoom = useAppStore((s) => s.previewZoom);
+  const debugMode = useAppStore((s) => s.debugMode);
   const set = useAppStore((s) => s.set);
 
   return (
@@ -26,6 +27,14 @@ export default function Header({ onReset, onExport }) {
       </div>
 
       <div className="header-actions">
+        <button
+          id="btn-debug-mode"
+          className={`btn ${debugMode ? 'btn-danger' : 'btn-secondary'}`}
+          title="Bật/tắt debug overlay (hiện audio.currentTime, FPS, lyric index trên canvas)"
+          onClick={() => set({ debugMode: !debugMode })}
+        >
+          <i className="fa-solid fa-bug"></i> {debugMode ? 'Tắt Debug' : 'Debug'}
+        </button>
         <button id="btn-reset-defaults" className="btn btn-secondary"
           title="Cài đặt lại toàn bộ thông số về mặc định" onClick={onReset}>
           <i className="fa-solid fa-rotate-left"></i> Cài lại mặc định

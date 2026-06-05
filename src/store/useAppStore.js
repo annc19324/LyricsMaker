@@ -126,6 +126,7 @@ const useAppStore = create((set, get) => ({
   isPlaying: false,
   currentTime: 0,
   duration: 0,
+  debugMode: false,      // canvas debug overlay
 
   // ---- actions ----
   set(partial) {
