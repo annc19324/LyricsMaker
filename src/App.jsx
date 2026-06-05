@@ -11,6 +11,7 @@ import { useCanvas } from './hooks/useCanvas';
 import { useExport } from './hooks/useExport';
 import { buildLyricsFromRaw, findFirstUnsyncedIndex } from './lib/lyricsParser';
 import { loadFileFromIDB } from './lib/idb';
+import { resetScrollY } from './lib/canvasRenderer';
 
 import Header from './components/Header';
 import LeftSidebar from './components/LeftSidebar';

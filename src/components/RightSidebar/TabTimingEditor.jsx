@@ -5,6 +5,7 @@
 import { useEffect, useRef } from 'react';
 import useAppStore from '../../store/useAppStore';
 import { formatTime } from '../../lib/lyricsParser';
+import { resetScrollY } from '../../lib/canvasRenderer';
 
 export default function TabTimingEditor({ audioRef, initAudioContext }) {
   const lyrics = useAppStore((s) => s.lyrics);
@@ -48,6 +49,7 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
     if (time !== null && time > 0) {
       initAudioContext();
       if (audioRef.current) audioRef.current.currentTime = time;
+      resetScrollY(); // snap canvas to correct lyric immediately
     }
   };
 

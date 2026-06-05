@@ -5,6 +5,7 @@
 import { useState, useCallback } from 'react';
 import useAppStore from '../../store/useAppStore';
 import { formatTime } from '../../lib/lyricsParser';
+import { resetScrollY } from '../../lib/canvasRenderer';
 
 export default function PlaybackControls({ audioRef, initAudioContext, onMarkTiming, mediaRefs }) {
   const volume = useAppStore((s) => s.volume);
@@ -57,6 +58,7 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = Math.max(0, audio.currentTime + delta);
+    resetScrollY(); // snap canvas to correct lyric after seek
   };
 
   const handleProgressChange = (e) => {
@@ -68,6 +70,7 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     const end = audioEnd === 'auto' ? dur : parseFloat(audioEnd);
     const trimDur = end - audioStart;
     audio.currentTime = audioStart + (parseFloat(e.target.value) / 100) * trimDur;
+    resetScrollY(); // snap canvas to correct lyric after seek
   };
 
   const handleVolumeChange = (e) => {

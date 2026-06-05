@@ -9,7 +9,7 @@
  */
 import { useRef, useCallback, useState } from 'react';
 import useAppStore from '../store/useAppStore';
-import { renderFrame } from '../lib/canvasRenderer';
+import { renderFrame, resetScrollY } from '../lib/canvasRenderer';
 import { showToast } from '../components/ui/Toast';
 
 export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioCtxRef) {
@@ -154,6 +154,9 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
       const volumeFactor = parseFloat(state.volume) / 100;
       const fadeIn = parseFloat(state.fadeIn) || 0;
       const fadeOut = parseFloat(state.fadeOut) || 0;
+
+      // Reset scroll state so export starts from clean position (same as after seek in preview)
+      resetScrollY();
 
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelRef.current) break;

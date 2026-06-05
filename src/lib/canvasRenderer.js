@@ -21,9 +21,11 @@ export function initFogParticles() {
 
 // ── Scroll LERP state ─────────────────────────────────────────────────────────
 let currentScrollY = undefined;
+let prevActiveIndex = -1;   // track previous lyric index to detect seeks
 
 export function resetScrollY() {
   currentScrollY = undefined;
+  prevActiveIndex = -1;
 }
 
 // ── Main render entry ─────────────────────────────────────────────────────────
@@ -260,15 +262,18 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
   const linesAbove = visuals.linesAbove;
   const linesBelow = visuals.linesBelow === 'auto' ? 1 : visuals.linesBelow;
 
-  // Smooth LERP scroll
+  // Smooth LERP scroll — snap immediately on seek (index jump ≥ 2) so preview matches export
   const targetScrollY = activeIndex * lineSpacing;
   const transitionEnabled = visuals.transitionEnabled !== false;
-  if (currentScrollY === undefined || !transitionEnabled) {
+  const indexJump = Math.abs(activeIndex - prevActiveIndex);
+  const shouldSnap = currentScrollY === undefined || !transitionEnabled || indexJump >= 2;
+  if (shouldSnap) {
     currentScrollY = targetScrollY;
   } else {
     const speed = visuals.transitionSpeed !== undefined ? visuals.transitionSpeed : 0.1;
     currentScrollY += (targetScrollY - currentScrollY) * speed;
   }
+  prevActiveIndex = activeIndex;
 
   const startIdx = Math.max(0, activeIndex - linesAbove - 1);
   const endIdx = Math.min(lyrics.length - 1, activeIndex + linesBelow + 1);
