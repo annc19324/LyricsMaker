@@ -100,10 +100,10 @@ export default function TabEffects() {
             value={v?.watermarkText ?? '@annc19324'} onChange={(e) => sv('watermarkText', e.target.value)} />
         </div>
         <div className="form-grid">
-          <SliderRow id="slider-wm-x" label="Vị trí X" min={0} max={100}
+          <SliderRow id="slider-wm-x" label="Vị trí X" min={0} max={100} step={0.1}
             value={v?.watermarkX ?? 50} displayValue={`${v?.watermarkX ?? 50}%`}
             onChange={(val) => sv('watermarkX', val)} />
-          <SliderRow id="slider-wm-y" label="Vị trí Y" min={0} max={100}
+          <SliderRow id="slider-wm-y" label="Vị trí Y" min={0} max={100} step={0.1}
             value={v?.watermarkY ?? 50} displayValue={`${v?.watermarkY ?? 50}%`}
             onChange={(val) => sv('watermarkY', val)} />
         </div>

@@ -1,7 +1,8 @@
 /**
  * components/RightSidebar/TabLyricsInput.jsx
- * Raw lyrics textarea + parse button.
+ * Raw lyrics textarea + auto-sync parse.
  */
+import { useEffect } from 'react';
 import useAppStore from '../../store/useAppStore';
 import { buildLyricsFromRaw, findFirstUnsyncedIndex } from '../../lib/lyricsParser';
 
@@ -13,11 +14,12 @@ export default function TabLyricsInput() {
   const updateLyrics = useAppStore((s) => s.updateLyrics);
   const setSyncCursor = useAppStore((s) => s.setSyncCursor);
 
-  const handleParse = () => {
+  // Auto-parse on rawLyrics change so it syncs immediately without clicking a button
+  useEffect(() => {
     const newLyrics = buildLyricsFromRaw(rawLyrics, timings, lyrics);
     updateLyrics(newLyrics);
     setSyncCursor(findFirstUnsyncedIndex(newLyrics));
-  };
+  }, [rawLyrics]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="tab-panel active" id="tab-lyrics-input">
@@ -37,9 +39,6 @@ export default function TabLyricsInput() {
           value={rawLyrics}
           onChange={(e) => set({ rawLyrics: e.target.value })}
         />
-        <button id="btn-parse-lyrics" className="btn btn-secondary mt-3" onClick={handleParse}>
-          <i className="fa-solid fa-rotate"></i> Phân tích & Đồng bộ
-        </button>
       </div>
     </div>
   );

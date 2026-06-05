@@ -62,9 +62,9 @@ export default function TabLayout() {
           displayValue={`${v?.songInfoFontSize ?? 20}px`}
           onChange={(val) => sv('songInfoFontSize', val)} />
         <div className="form-grid">
-          <SliderRow id="slider-si-x" label="Vị trí X" min={0} max={100} value={v?.songInfoX ?? 50}
+          <SliderRow id="slider-si-x" label="Vị trí X" min={0} max={100} step={0.1} value={v?.songInfoX ?? 50}
             displayValue={`${v?.songInfoX ?? 50}%`} onChange={(val) => sv('songInfoX', val)} />
-          <SliderRow id="slider-si-y" label="Vị trí Y" min={0} max={100} value={v?.songInfoY ?? 8}
+          <SliderRow id="slider-si-y" label="Vị trí Y" min={0} max={100} step={0.1} value={v?.songInfoY ?? 8}
             displayValue={`${v?.songInfoY ?? 8}%`} onChange={(val) => sv('songInfoY', val)} />
         </div>
       </div>
@@ -103,10 +103,10 @@ export default function TabLayout() {
         <SliderRow id="slider-main-size" label="Kích thước (Size)" min={20} max={1200}
           value={v?.mainSize ?? 200} displayValue={`${v?.mainSize ?? 200}px`}
           onChange={(val) => sv('mainSize', val)} />
-        <SliderRow id="slider-main-x" label="Vị trí X (%)" min={0} max={100}
+        <SliderRow id="slider-main-x" label="Vị trí X (%)" min={0} max={100} step={0.1}
           value={v?.mainX ?? 50} displayValue={`${v?.mainX ?? 50}%`}
           onChange={(val) => sv('mainX', val)} />
-        <SliderRow id="slider-main-y" label="Vị trí Y (%)" min={0} max={100}
+        <SliderRow id="slider-main-y" label="Vị trí Y (%)" min={0} max={100} step={0.1}
           value={v?.mainY ?? 35} displayValue={`${v?.mainY ?? 35}%`}
           onChange={(val) => sv('mainY', val)} />
       </div>
@@ -140,10 +140,10 @@ export default function TabLayout() {
             ))}
           </div>
         </div>
-        <SliderRow id="slider-lyric-x" label="Vị trí X (%)" min={0} max={100}
+        <SliderRow id="slider-lyric-x" label="Vị trí X (%)" min={0} max={100} step={0.1}
           value={v?.lyricX ?? 50} displayValue={`${v?.lyricX ?? 50}%`}
           onChange={(val) => sv('lyricX', val)} />
-        <SliderRow id="slider-lyric-y" label="Vị trí Y (%)" min={0} max={100}
+        <SliderRow id="slider-lyric-y" label="Vị trí Y (%)" min={0} max={100} step={0.1}
           value={v?.lyricY ?? 75} displayValue={`${v?.lyricY ?? 75}%`}
           onChange={(val) => sv('lyricY', val)} />
         <div className="form-grid">
