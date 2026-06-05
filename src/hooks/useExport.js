@@ -1,15 +1,16 @@
 /**
  * hooks/useExport.js
- * Handles the WebCodecs + mp4-muxer + FFmpeg.wasm v0.12 video export pipeline.
+ * Video export: WebCodecs (VideoEncoder + AudioEncoder) + mp4-muxer.
+ * No FFmpeg dependency — audio is decoded via Web Audio API and encoded
+ * with AudioEncoder, then muxed together with mp4-muxer in one pass.
  *
- * Global scripts loaded in index.html:
- *   - /js/ffmpeg/ffmpeg.js       → window.FFmpegWASM  { FFmpeg }
- *   - /js/ffmpeg/ffmpeg-util.js  → window.FFmpegUtil  { fetchFile, toBlobURL }
- *   - /js/ffmpeg/mp4-muxer.js   → window.Mp4Muxer
+ * Required global (index.html script tag):
+ *   /js/ffmpeg/mp4-muxer.js  → window.Mp4Muxer
  */
 import { useRef, useCallback, useState } from 'react';
 import useAppStore from '../store/useAppStore';
 import { renderFrame } from '../lib/canvasRenderer';
+import { showToast } from '../components/ui/Toast';
 
 export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioCtxRef) {
   const [isExporting, setIsExporting] = useState(false);
@@ -28,12 +29,21 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
     if (!canvas || !audio) return;
 
     const state = useAppStore.getState();
+
     if (state.lyrics.length === 0) {
-      alert('Vui lòng nhập và phân tích lyrics trước!');
+      showToast('Vui lòng nhập và phân tích lyrics trước!', 'warning');
       return;
     }
     if (typeof VideoEncoder === 'undefined') {
-      alert('Trình duyệt của bạn không hỗ trợ WebCodecs API. Vui lòng dùng Chrome, Edge hoặc Safari mới nhất!');
+      showToast('Trình duyệt không hỗ trợ WebCodecs (VideoEncoder). Hãy dùng Chrome/Edge mới nhất!', 'error', 5000);
+      return;
+    }
+    if (typeof AudioEncoder === 'undefined') {
+      showToast('Trình duyệt không hỗ trợ AudioEncoder. Hãy dùng Chrome/Edge mới nhất!', 'error', 5000);
+      return;
+    }
+    if (!window.Mp4Muxer) {
+      showToast('mp4-muxer chưa được tải. Kiểm tra /js/ffmpeg/mp4-muxer.js', 'error', 5000);
       return;
     }
 
@@ -42,11 +52,17 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
     setShowModal(true);
     setExportDone(false);
     setDownloadUrl(null);
-    setExportPhase('⏺ Đang kết xuất video câm...');
-    setExportDesc('Tận dụng GPU của thiết bị để render siêu tốc các khung hình.');
+    setExportPhase('🎵 Đang giải mã âm thanh...');
+    setExportDesc('Đọc file âm thanh và chuẩn bị encoder.');
     setExportProgress(0);
+    setExportStatusText('');
 
     audio.pause();
+
+    // Mute speakers during export
+    if (speakerGainRef.current && audioCtxRef.current) {
+      speakerGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
+    }
 
     const trimStart = parseFloat(state.audioStart) || 0;
     const trimEnd = state.audioEnd === 'auto' ? (audio.duration || 60) : parseFloat(state.audioEnd);
@@ -54,27 +70,48 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
     const fps = 30;
     const totalFrames = Math.floor(totalDuration * fps);
 
-    // Mute speakers during export
-    if (speakerGainRef.current && audioCtxRef.current) {
-      speakerGainRef.current.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
-    }
-
-    await new Promise((r) => setTimeout(r, 50));
-
     try {
-      // ── Phase 1: WebCodecs silent video ──────────────────────────────────
-      const muxer = new Mp4Muxer.Muxer({
+      // ── Step 1: Decode audio ─────────────────────────────────────────────
+      let audioBuffer = null;
+      try {
+        const audioResp = await fetch(audio.src);
+        if (!audioResp.ok) throw new Error(`HTTP ${audioResp.status}`);
+        const arrayBuf = await audioResp.arrayBuffer();
+        const offlineCtx = new OfflineAudioContext(2, 44100, 44100);
+        audioBuffer = await offlineCtx.decodeAudioData(arrayBuf);
+      } catch (e) {
+        console.warn('[Export] Audio decode failed, exporting silent video:', e);
+        showToast('Không thể đọc file âm thanh — xuất video không có tiếng.', 'warning', 4000);
+      }
+
+      const sampleRate = audioBuffer?.sampleRate ?? 44100;
+      const numChannels = audioBuffer?.numberOfChannels ?? 2;
+
+      // ── Step 2: Set up Mp4Muxer ──────────────────────────────────────────
+      setExportPhase('⏺ Đang render video...');
+      setExportDesc('Tận dụng GPU của thiết bị để render siêu tốc các khung hình.');
+
+      const muxerOptions = {
         target: new Mp4Muxer.ArrayBufferTarget(),
         video: { codec: 'avc', width: canvas.width, height: canvas.height },
         fastStart: 'in-memory',
-      });
+      };
+      if (audioBuffer) {
+        muxerOptions.audio = {
+          codec: 'aac',
+          numberOfChannels: numChannels,
+          sampleRate,
+        };
+      }
+      const muxer = new Mp4Muxer.Muxer(muxerOptions);
 
-      const encoder = new VideoEncoder({
+      // ── Step 3: VideoEncoder ─────────────────────────────────────────────
+      const videoEncoder = new VideoEncoder({
         output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
         error: (e) => console.error('[VideoEncoder]', e),
       });
 
-      const config = {
+      const videoCfg = {
         codec: 'avc1.4d002a',
         width: canvas.width,
         height: canvas.height,
@@ -82,10 +119,26 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         framerate: fps,
         hardwareAcceleration: 'prefer-hardware',
       };
-      const support = await VideoEncoder.isConfigSupported(config);
-      if (!support.supported) config.hardwareAcceleration = 'prefer-software';
-      encoder.configure(config);
+      const videoSupport = await VideoEncoder.isConfigSupported(videoCfg);
+      if (!videoSupport.supported) videoCfg.hardwareAcceleration = 'prefer-software';
+      videoEncoder.configure(videoCfg);
 
+      // ── Step 4: AudioEncoder ─────────────────────────────────────────────
+      let audioEncoder = null;
+      if (audioBuffer) {
+        audioEncoder = new AudioEncoder({
+          output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+          error: (e) => console.error('[AudioEncoder]', e),
+        });
+        audioEncoder.configure({
+          codec: 'mp4a.40.2', // AAC-LC
+          numberOfChannels: numChannels,
+          sampleRate,
+          bitrate: 128_000,
+        });
+      }
+
+      // ── Step 5: Render video frames ──────────────────────────────────────
       const ctx2d = canvas.getContext('2d');
       const visuals = state.visuals[state.activeRatio];
       const meta = { songTitle: state.songTitle, songArtist: state.songArtist, songChannel: state.songChannel };
@@ -98,29 +151,82 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         mainMediaType: mediaRefs.mainMediaType.current,
       };
 
+      const volumeFactor = parseFloat(state.volume) / 100;
+      const fadeIn = parseFloat(state.fadeIn) || 0;
+      const fadeOut = parseFloat(state.fadeOut) || 0;
+
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelRef.current) break;
+
         const t = trimStart + frame / fps;
+
+        // Draw frame
         renderFrame(ctx2d, canvas, t, visuals, meta, state.lyrics, media, state.highlightRules, audio.duration || 60);
 
-        const vf = new VideoFrame(canvas, {
+        // Encode video frame
+        const videoFrame = new VideoFrame(canvas, {
           timestamp: Math.round((frame / fps) * 1_000_000),
           duration: Math.round(1_000_000 / fps),
         });
-        encoder.encode(vf, { keyFrame: frame % (fps * 2) === 0 });
-        vf.close();
+        videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
+        videoFrame.close();
 
-        if (frame % 10 === 0) {
-          const pct = Math.round((frame / totalFrames) * 85); // up to 85%
+        // Interleave audio chunk for this frame's time window
+        if (audioEncoder && audioBuffer) {
+          const frameDur = 1 / fps;
+          const audioStartSample = Math.floor(t * sampleRate);
+          const audioEndSample = Math.floor((t + frameDur) * sampleRate);
+          const numFrames = audioEndSample - audioStartSample;
+
+          if (numFrames > 0 && audioStartSample < audioBuffer.length) {
+            // Build planar Float32 data for all channels
+            const clampedFrames = Math.min(numFrames, audioBuffer.length - audioStartSample);
+            const planeSize = clampedFrames;
+            const planeData = new Float32Array(planeSize * numChannels);
+
+            for (let ch = 0; ch < numChannels; ch++) {
+              const src = audioBuffer.getChannelData(ch);
+              const planeOffset = ch * planeSize;
+              for (let s = 0; s < clampedFrames; s++) {
+                let sample = src[audioStartSample + s] ?? 0;
+
+                // Apply volume
+                sample *= volumeFactor;
+
+                // Fade in
+                const elapsed = (audioStartSample + s) / sampleRate - trimStart;
+                if (fadeIn > 0 && elapsed < fadeIn) {
+                  sample *= Math.max(0, elapsed / fadeIn);
+                }
+                // Fade out
+                if (fadeOut > 0 && elapsed > totalDuration - fadeOut) {
+                  sample *= Math.max(0, (totalDuration - elapsed) / fadeOut);
+                }
+
+                planeData[planeOffset + s] = sample;
+              }
+            }
+
+            const audioData = new AudioData({
+              format: 'f32-planar',
+              sampleRate,
+              numberOfFrames: clampedFrames,
+              numberOfChannels: numChannels,
+              timestamp: Math.round((t - trimStart) * 1_000_000),
+              data: planeData,
+            });
+            audioEncoder.encode(audioData);
+            audioData.close();
+          }
+        }
+
+        if (frame % 15 === 0) {
+          const pct = Math.round((frame / totalFrames) * 90);
           setExportProgress(pct);
           setExportStatusText(`Đang render: ${frame}/${totalFrames} frames (${pct}%)`);
           await new Promise((r) => setTimeout(r, 0));
         }
       }
-
-      await encoder.flush();
-      muxer.finalize();
-      const silentMp4Buffer = muxer.target.buffer;
 
       if (cancelRef.current) {
         setIsExporting(false);
@@ -128,69 +234,29 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         return;
       }
 
-      // ── Phase 2: FFmpeg.wasm v0.12 — mux audio ───────────────────────────
-      setExportPhase('🎵 Đang ghép âm thanh...');
-      setExportDesc('Sử dụng FFmpeg.wasm để ghép audio vào video.');
-      setExportProgress(87);
-      setExportStatusText('Đang khởi tạo FFmpeg...');
+      // ── Step 6: Flush & finalise ─────────────────────────────────────────
+      setExportPhase('✅ Đang hoàn thiện file MP4...');
+      setExportDesc('Ghép video và âm thanh vào một file MP4.');
+      setExportProgress(93);
+      setExportStatusText('Đang flush encoders...');
 
-      // Access globals injected by <script> tags in index.html
-      if (!window.FFmpegWASM) throw new Error('FFmpegWASM script not loaded. Check /js/ffmpeg/ffmpeg.js');
-      if (!window.FFmpegUtil)  throw new Error('FFmpegUtil script not loaded. Check /js/ffmpeg/ffmpeg-util.js');
+      await videoEncoder.flush();
+      if (audioEncoder) await audioEncoder.flush();
+      muxer.finalize();
 
-      const { FFmpeg } = window.FFmpegWASM;
-      const { fetchFile } = window.FFmpegUtil;
-
-      const ffmpeg = new FFmpeg();
-
-      // Worker (814.ffmpeg.js) auto-loads ffmpeg-core from unpkg CDN by default.
-      // No coreURL/wasmURL needed — calling load() with no args uses the CDN default.
-      await ffmpeg.load();
-
-      setExportProgress(90);
-      setExportStatusText('Đang ghi file...');
-
-      // Write silent video
-      await ffmpeg.writeFile('silent.mp4', new Uint8Array(silentMp4Buffer));
-
-      // Fetch audio source
-      const audioData = await fetchFile(audio.src);
-      await ffmpeg.writeFile('audio_src', audioData);
-
-      // Build audio filter
-      const fadeInArg = parseFloat(state.fadeIn) || 0;
-      const fadeOutArg = parseFloat(state.fadeOut) || 0;
-      let audioFilter = `atrim=start=${trimStart}:end=${trimEnd}`;
-      if (fadeInArg > 0) audioFilter += `,afade=t=in:st=${trimStart}:d=${fadeInArg}`;
-      if (fadeOutArg > 0) audioFilter += `,afade=t=out:st=${trimEnd - fadeOutArg}:d=${fadeOutArg}`;
-      audioFilter += `,asetpts=PTS-STARTPTS,volume=${state.volume / 100}`;
-
-      setExportProgress(92);
-      setExportStatusText('Đang mux video + audio...');
-
-      await ffmpeg.exec([
-        '-i', 'silent.mp4',
-        '-i', 'audio_src',
-        '-filter_complex', `[1:a]${audioFilter}[a]`,
-        '-map', '0:v',
-        '-map', '[a]',
-        '-c:v', 'copy',
-        '-c:a', 'aac',
-        '-shortest',
-        'output.mp4',
-      ]);
-
-      const outputData = await ffmpeg.readFile('output.mp4');
-      const blob = new Blob([outputData.buffer], { type: 'video/mp4' });
+      const outputBuf = muxer.target.buffer;
+      const blob = new Blob([outputBuf], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
 
       setDownloadUrl(url);
       setExportProgress(100);
       setExportStatusText('Hoàn tất!');
       setExportDone(true);
+      showToast('Xuất video MP4 thành công! 🎉', 'success', 4000);
+
     } catch (err) {
       console.error('[Export Error]', err);
-      alert('Xuất video thất bại: ' + (err?.message || err));
+      showToast('Xuất video thất bại: ' + (err?.message || String(err)), 'error', 6000);
       setShowModal(false);
     } finally {
       setIsExporting(false);
@@ -205,6 +271,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
     cancelRef.current = true;
     setIsExporting(false);
     setShowModal(false);
+    showToast('Đã hủy xuất video.', 'info');
   }, []);
 
   const closeModal = useCallback(() => { setShowModal(false); }, []);
