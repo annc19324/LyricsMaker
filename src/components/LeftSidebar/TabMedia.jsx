@@ -15,6 +15,8 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const audioEnd = useAppStore((s) => s.audioEnd);
   const fadeIn = useAppStore((s) => s.fadeIn);
   const fadeOut = useAppStore((s) => s.fadeOut);
+  const previewOffset = useAppStore((s) => s.previewOffset);
+  const exportOffset = useAppStore((s) => s.exportOffset);
   const set = useAppStore((s) => s.set);
 
   const [bgType, setBgType] = useState('image');
@@ -201,6 +203,29 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
           <FileUploadZone id="upload-main-video-zone" accept="video/*" icon="fa-video"
             label="Chọn Video Chính" fileInfo={mainVideoInfo} onFile={handleMainVideo} />
         )}
+      </div>
+
+      {/* Time Offset Controls */}
+      <div className="panel-section">
+        <h3><i className="fa-solid fa-clock-rotate-left"></i> Độ lệch thời gian (Offset)</h3>
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="input-preview-offset">Bản xem web (ms)</label>
+            <input type="number" id="input-preview-offset" step="50" value={previewOffset}
+              onChange={(e) => set({ previewOffset: parseInt(e.target.value) || 0 })} />
+            <small style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+              VD: +500 dịch chuyển chữ/hình lên sớm hơn 0.5s.
+            </small>
+          </div>
+          <div className="form-group">
+            <label htmlFor="input-export-offset">Video xuất ra (ms)</label>
+            <input type="number" id="input-export-offset" step="50" value={exportOffset}
+              onChange={(e) => set({ exportOffset: parseInt(e.target.value) || 0 })} />
+            <small style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+              Thường để bằng 0 trừ khi video xuất bị lệch tiếng.
+            </small>
+          </div>
+        </div>
       </div>
     </>
   );

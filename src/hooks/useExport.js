@@ -163,7 +163,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelRef.current) break;
 
-        const t = trimStart + frame / fps;
+        const t = Math.max(0, trimStart + frame / fps + (state.exportOffset || 0) / 1000);
 
         // Sync video times to render timestamp 't' so export frames are correct
         if (media.bgMediaType === 'video' && media.bgVideo) {

@@ -73,8 +73,8 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
         const state = useAppStore.getState();
         const visuals = state.visuals[state.activeRatio];
 
-        // ── Source of truth: audio.currentTime (NEVER performance.now) ──────
-        const curTime = audio.currentTime;
+        // ── Source of truth: audio.currentTime (adjusted by previewOffset) ──────
+        const curTime = audio.currentTime + (state.previewOffset || 0) / 1000;
 
         // Sync background video if it drifts by more than 0.15s
         if (mediaRefs.bgMediaType.current === 'video' && mediaRefs.bgVideo.current) {

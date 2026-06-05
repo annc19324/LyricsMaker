@@ -81,6 +81,8 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   highlightRules: [{ pattern: '[', close: ']', color: '#f59e0b' }],
   activeLeftTab: 'tab-media',
   activeRightTab: 'tab-lyrics-input',
+  previewOffset: 0,      // in milliseconds
+  exportOffset: 0,       // in milliseconds
 };
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
@@ -106,6 +108,7 @@ function persistGlobal(state) {
     'songTitle','songArtist','songChannel','rawLyrics','audioStart','audioEnd',
     'fadeIn','fadeOut','volume','activeRatio','previewZoom','timings',
     'highlightRules','markKeys','activeLeftTab','activeRightTab',
+    'previewOffset', 'exportOffset',
   ];
   const payload = {};
   keys.forEach((k) => { payload[k] = rest[k]; });
