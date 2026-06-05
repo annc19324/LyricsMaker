@@ -76,6 +76,21 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
         // ── Source of truth: audio.currentTime (NEVER performance.now) ──────
         const curTime = audio.currentTime;
 
+        // Sync background video if it drifts by more than 0.15s
+        if (mediaRefs.bgMediaType.current === 'video' && mediaRefs.bgVideo.current) {
+          const bgVid = mediaRefs.bgVideo.current;
+          if (Math.abs(bgVid.currentTime - curTime) > 0.15) {
+            bgVid.currentTime = curTime;
+          }
+        }
+        // Sync main video if it drifts by more than 0.15s
+        if (mediaRefs.mainMediaType.current === 'video' && mediaRefs.mainVideo.current) {
+          const mainVid = mediaRefs.mainVideo.current;
+          if (Math.abs(mainVid.currentTime - curTime) > 0.15) {
+            mainVid.currentTime = curTime;
+          }
+        }
+
         renderFrame(
           ctx2d, canvas,
           curTime,

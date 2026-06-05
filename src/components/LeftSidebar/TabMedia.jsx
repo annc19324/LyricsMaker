@@ -2,10 +2,10 @@
  * components/LeftSidebar/TabMedia.jsx
  * Song info + audio + background + main media upload.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useAppStore from '../../store/useAppStore';
 import FileUploadZone from '../ui/FileUploadZone';
-import { saveFileToIDB } from '../../lib/idb';
+import { saveFileToIDB, loadFileFromIDB } from '../../lib/idb';
 
 export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const songTitle = useAppStore((s) => s.songTitle);
@@ -24,6 +24,37 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const [bgVideoInfo, setBgVideoInfo] = useState('Chưa có video nền');
   const [mainImageInfo, setMainImageInfo] = useState('Mặc định: Đĩa Vinyl');
   const [mainVideoInfo, setMainVideoInfo] = useState('Chưa có video chính');
+
+  // Load actual file names from IndexedDB on mount to keep labels accurate
+  useEffect(() => {
+    const restoreLabels = async () => {
+      try {
+        const audioFile = await loadFileFromIDB('audio');
+        if (audioFile) setAudioInfo(audioFile.name);
+
+        const bgImg = await loadFileFromIDB('bg_image');
+        if (bgImg) setBgImageInfo(bgImg.name);
+
+        const bgVid = await loadFileFromIDB('bg_video');
+        if (bgVid) {
+          setBgVideoInfo(bgVid.name);
+          setBgType('video');
+        }
+
+        const mainImg = await loadFileFromIDB('main_image');
+        if (mainImg) setMainImageInfo(mainImg.name);
+
+        const mainVid = await loadFileFromIDB('main_video');
+        if (mainVid) {
+          setMainVideoInfo(mainVid.name);
+          setMainType('video');
+        }
+      } catch (e) {
+        console.warn('TabMedia label restore failed:', e);
+      }
+    };
+    restoreLabels();
+  }, []);
 
   const handleAudio = (file) => {
     setAudioInfo(file.name);
@@ -47,6 +78,14 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     mediaRefs.bgVideo.current.play().catch(() => {});
     mediaRefs.bgMediaType.current = 'video';
     saveFileToIDB('bg_video', file).catch(() => {});
+
+    // If no manual custom audio is selected, use the background video's audio & timeline
+    const isDefaultOrVid = audioInfo === 'Đang dùng nhạc demo mặc định' || audioInfo.startsWith('Nhạc từ video');
+    if (isDefaultOrVid) {
+      setAudioInfo(`Nhạc từ video nền: ${file.name}`);
+      loadAudioFile(file);
+      saveFileToIDB('audio', file).catch(() => {});
+    }
   };
 
   const handleMainImage = (file) => {
@@ -65,6 +104,14 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     mediaRefs.mainVideo.current.play().catch(() => {});
     mediaRefs.mainMediaType.current = 'video';
     saveFileToIDB('main_video', file).catch(() => {});
+
+    // If no manual custom audio is selected, use the main video's audio & timeline
+    const isDefaultOrVid = audioInfo === 'Đang dùng nhạc demo mặc định' || audioInfo.startsWith('Nhạc từ video');
+    if (isDefaultOrVid) {
+      setAudioInfo(`Nhạc từ video chính: ${file.name}`);
+      loadAudioFile(file);
+      saveFileToIDB('audio', file).catch(() => {});
+    }
   };
 
   return (
@@ -92,8 +139,8 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
       {/* Audio Upload */}
       <div className="panel-section">
         <h3><i className="fa-solid fa-file-audio"></i> Nhạc Nền (Sound)</h3>
-        <FileUploadZone id="upload-audio-zone" accept="audio/*" icon="fa-cloud-arrow-up"
-          label="Kéo thả hoặc click để chọn File Nhạc" fileInfo={audioInfo} onFile={handleAudio} />
+        <FileUploadZone id="upload-audio-zone" accept="audio/*,video/*" icon="fa-cloud-arrow-up"
+          label="Kéo thả hoặc click để chọn File Nhạc/Video" fileInfo={audioInfo} onFile={handleAudio} />
         <div className="form-grid mt-3">
           <div className="form-group">
             <label htmlFor="input-audio-start">Bắt đầu (s)</label>

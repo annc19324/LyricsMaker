@@ -165,6 +165,30 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
 
         const t = trimStart + frame / fps;
 
+        // Sync video times to render timestamp 't' so export frames are correct
+        if (media.bgMediaType === 'video' && media.bgVideo) {
+          media.bgVideo.currentTime = t;
+          await new Promise((resolve) => {
+            const onSeeked = () => {
+              media.bgVideo.removeEventListener('seeked', onSeeked);
+              resolve();
+            };
+            media.bgVideo.addEventListener('seeked', onSeeked);
+            setTimeout(onSeeked, 80);
+          });
+        }
+        if (media.mainMediaType === 'video' && media.mainVideo) {
+          media.mainVideo.currentTime = t;
+          await new Promise((resolve) => {
+            const onSeeked = () => {
+              media.mainVideo.removeEventListener('seeked', onSeeked);
+              resolve();
+            };
+            media.mainVideo.addEventListener('seeked', onSeeked);
+            setTimeout(onSeeked, 80);
+          });
+        }
+
         // Draw frame
         renderFrame(ctx2d, canvas, t, visuals, meta, state.lyrics, media, state.highlightRules, audio.duration || 60);
 
