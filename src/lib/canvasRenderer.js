@@ -19,14 +19,8 @@ export function initFogParticles() {
   }
 }
 
-// ── Scroll LERP state ─────────────────────────────────────────────────────────
-let currentScrollY = undefined;
-let prevActiveIndex = -1;   // track previous lyric index to detect seeks
-
-export function resetScrollY() {
-  currentScrollY = undefined;
-  prevActiveIndex = -1;
-}
+// ── Scroll LERP state (Now stateless, resetScrollY kept for API compatibility) ──
+export function resetScrollY() {}
 
 // ── Main render entry ─────────────────────────────────────────────────────────
 /**
@@ -262,18 +256,32 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
   const linesAbove = visuals.linesAbove;
   const linesBelow = visuals.linesBelow === 'auto' ? 1 : visuals.linesBelow;
 
-  // Smooth LERP scroll — snap immediately on seek (index jump ≥ 2) so preview matches export
+  // Smooth frame-rate-independent scroll transition (stateless)
   const targetScrollY = activeIndex * lineSpacing;
   const transitionEnabled = visuals.transitionEnabled !== false;
-  const indexJump = Math.abs(activeIndex - prevActiveIndex);
-  const shouldSnap = currentScrollY === undefined || !transitionEnabled || indexJump >= 2;
-  if (shouldSnap) {
-    currentScrollY = targetScrollY;
-  } else {
-    const speed = visuals.transitionSpeed !== undefined ? visuals.transitionSpeed : 0.1;
-    currentScrollY += (targetScrollY - currentScrollY) * speed;
+  let currentScrollY = targetScrollY;
+
+  if (transitionEnabled && activeIndex > 0 && lyrics.length > 0) {
+    const activeLyr = lyrics[activeIndex];
+    const prevLyr = lyrics[activeIndex - 1];
+    if (activeLyr && prevLyr && activeLyr.time !== null && prevLyr.time !== null) {
+      const tStart = activeLyr.time;
+      const tPrev = prevLyr.time;
+      const gap = tStart - tPrev;
+      const duration = Math.min(0.35, gap > 0 ? gap : 0.35);
+      if (curTime < tStart + duration) {
+        const elapsed = curTime - tStart;
+        if (elapsed >= 0) {
+          const progress = elapsed / duration;
+          const ease = progress * progress * (3 - 2 * progress); // smoothstep
+          const prevScrollY = (activeIndex - 1) * lineSpacing;
+          currentScrollY = prevScrollY + (targetScrollY - prevScrollY) * ease;
+        } else {
+          currentScrollY = (activeIndex - 1) * lineSpacing;
+        }
+      }
+    }
   }
-  prevActiveIndex = activeIndex;
 
   const startIdx = Math.max(0, activeIndex - linesAbove - 1);
   const endIdx = Math.min(lyrics.length - 1, activeIndex + linesBelow + 1);
