@@ -195,12 +195,17 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
           timestamp: Math.round((frame / fps) * 1_000_000),
           duration: Math.round(1_000_000 / fps),
         });
-        videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
-        videoFrame.close();
 
-        if (videoEncoder.encodeQueueSize > 30) {
+        if (videoEncoder.state === 'closed') {
+          videoFrame.close();
+          throw new Error('VideoEncoder bị đóng đột ngột. Vui lòng thử khởi động lại trình duyệt hoặc dùng Chrome/Edge bản mới nhất!');
+        }
+        while (videoEncoder.encodeQueueSize >= 5) {
           await new Promise((r) => setTimeout(r, 5));
         }
+
+        videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
+        videoFrame.close();
 
         if (frame % 15 === 0) {
           const pct = Math.round((frame / totalFrames) * 90);
@@ -268,12 +273,16 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
             data: planeData,
           });
 
-          audioEncoder.encode(audioData);
-          audioData.close();
-
-          if (audioEncoder.encodeQueueSize > 50) {
+          if (audioEncoder.state === 'closed') {
+            audioData.close();
+            throw new Error('AudioEncoder bị đóng đột ngột!');
+          }
+          while (audioEncoder.encodeQueueSize >= 10) {
             await new Promise((r) => setTimeout(r, 5));
           }
+
+          audioEncoder.encode(audioData);
+          audioData.close();
 
           sampleOffset += chunkSize;
         }
