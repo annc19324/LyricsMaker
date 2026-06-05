@@ -30,10 +30,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
 
     const state = useAppStore.getState();
 
-    if (state.lyrics.length === 0) {
-      showToast('Vui lòng nhập và phân tích lyrics trước!', 'warning');
-      return;
-    }
+
     if (typeof VideoEncoder === 'undefined') {
       showToast('Trình duyệt không hỗ trợ WebCodecs (VideoEncoder). Hãy dùng Chrome/Edge mới nhất!', 'error', 5000);
       return;
