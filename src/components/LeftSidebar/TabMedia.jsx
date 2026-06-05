@@ -80,7 +80,7 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     saveFileToIDB('bg_video', file).catch(() => {});
 
     // If no manual custom audio is selected, use the background video's audio & timeline
-    const isDefaultOrVid = audioInfo === 'Đang dùng nhạc demo mặc định' || audioInfo.startsWith('Nhạc từ video');
+    const isDefaultOrVid = audioInfo === 'Đang dùng nhạc demo mặc định' || audioInfo.startsWith('Nhạc từ video') || audioInfo === bgVideoInfo || audioInfo === mainVideoInfo;
     if (isDefaultOrVid) {
       setAudioInfo(`Nhạc từ video nền: ${file.name}`);
       loadAudioFile(file);
@@ -106,7 +106,7 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     saveFileToIDB('main_video', file).catch(() => {});
 
     // If no manual custom audio is selected, use the main video's audio & timeline
-    const isDefaultOrVid = audioInfo === 'Đang dùng nhạc demo mặc định' || audioInfo.startsWith('Nhạc từ video');
+    const isDefaultOrVid = audioInfo === 'Đang dùng nhạc demo mặc định' || audioInfo.startsWith('Nhạc từ video') || audioInfo === bgVideoInfo || audioInfo === mainVideoInfo;
     if (isDefaultOrVid) {
       setAudioInfo(`Nhạc từ video chính: ${file.name}`);
       loadAudioFile(file);

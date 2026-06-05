@@ -200,60 +200,76 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
         videoFrame.close();
 
-        // Interleave audio chunk for this frame's time window
-        if (audioEncoder && audioBuffer) {
-          const frameDur = 1 / fps;
-          const audioStartSample = Math.floor(t * sampleRate);
-          const audioEndSample = Math.floor((t + frameDur) * sampleRate);
-          const numFrames = audioEndSample - audioStartSample;
-
-          if (numFrames > 0 && audioStartSample < audioBuffer.length) {
-            // Build planar Float32 data for all channels
-            const clampedFrames = Math.min(numFrames, audioBuffer.length - audioStartSample);
-            const planeSize = clampedFrames;
-            const planeData = new Float32Array(planeSize * numChannels);
-
-            for (let ch = 0; ch < numChannels; ch++) {
-              const src = audioBuffer.getChannelData(ch);
-              const planeOffset = ch * planeSize;
-              for (let s = 0; s < clampedFrames; s++) {
-                let sample = src[audioStartSample + s] ?? 0;
-
-                // Apply volume
-                sample *= volumeFactor;
-
-                // Fade in
-                const elapsed = (audioStartSample + s) / sampleRate - trimStart;
-                if (fadeIn > 0 && elapsed < fadeIn) {
-                  sample *= Math.max(0, elapsed / fadeIn);
-                }
-                // Fade out
-                if (fadeOut > 0 && elapsed > totalDuration - fadeOut) {
-                  sample *= Math.max(0, (totalDuration - elapsed) / fadeOut);
-                }
-
-                planeData[planeOffset + s] = sample;
-              }
-            }
-
-            const audioData = new AudioData({
-              format: 'f32-planar',
-              sampleRate,
-              numberOfFrames: clampedFrames,
-              numberOfChannels: numChannels,
-              timestamp: Math.round((t - trimStart) * 1_000_000),
-              data: planeData,
-            });
-            audioEncoder.encode(audioData);
-            audioData.close();
-          }
-        }
-
         if (frame % 15 === 0) {
           const pct = Math.round((frame / totalFrames) * 90);
           setExportProgress(pct);
           setExportStatusText(`Đang render: ${frame}/${totalFrames} frames (${pct}%)`);
           await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+
+      if (cancelRef.current) {
+        setIsExporting(false);
+        setShowModal(false);
+        return;
+      }
+
+      // ── Step 5b: Encode audio track in fixed-size 1024-sample blocks (Standard AAC) ──
+      if (audioEncoder && audioBuffer) {
+        setExportPhase('⏺ Đang ghép âm thanh...');
+        setExportDesc('Nén và chèn âm thanh vào video.');
+        setExportProgress(90);
+
+        const audioStartOffset = Math.floor(trimStart * sampleRate);
+        const audioEndOffset = Math.floor(trimEnd * sampleRate);
+        const totalAudioSamples = audioEndOffset - audioStartOffset;
+        const aacFrameSize = 1024;
+
+        let sampleOffset = 0;
+        while (sampleOffset < totalAudioSamples) {
+          if (cancelRef.current) break;
+
+          const remaining = totalAudioSamples - sampleOffset;
+          const chunkSize = Math.min(aacFrameSize, remaining);
+          const currentSampleIndex = audioStartOffset + sampleOffset;
+
+          const planeData = new Float32Array(chunkSize * numChannels);
+          for (let ch = 0; ch < numChannels; ch++) {
+            const src = audioBuffer.getChannelData(ch);
+            const planeOffset = ch * chunkSize;
+            for (let s = 0; s < chunkSize; s++) {
+              let sample = src[currentSampleIndex + s] ?? 0;
+
+              // Apply volume
+              sample *= volumeFactor;
+
+              // Fade in
+              const elapsed = (currentSampleIndex + s) / sampleRate - trimStart;
+              if (fadeIn > 0 && elapsed < fadeIn) {
+                sample *= Math.max(0, elapsed / fadeIn);
+              }
+              // Fade out
+              if (fadeOut > 0 && elapsed > totalDuration - fadeOut) {
+                sample *= Math.max(0, (totalDuration - elapsed) / fadeOut);
+              }
+
+              planeData[planeOffset + s] = sample;
+            }
+          }
+
+          const audioData = new AudioData({
+            format: 'f32-planar',
+            sampleRate,
+            numberOfFrames: chunkSize,
+            numberOfChannels: numChannels,
+            timestamp: Math.round((sampleOffset / sampleRate) * 1_000_000),
+            data: planeData,
+          });
+
+          audioEncoder.encode(audioData);
+          audioData.close();
+
+          sampleOffset += chunkSize;
         }
       }
 
@@ -282,6 +298,14 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
       setExportStatusText('Hoàn tất!');
       setExportDone(true);
       showToast('Xuất video MP4 thành công! 🎉', 'success', 4000);
+
+      // Auto trigger download!
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${state.songTitle || 'video'}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
     } catch (err) {
       console.error('[Export Error]', err);
