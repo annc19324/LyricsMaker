@@ -70,7 +70,7 @@ export function useAudio(audioRef) {
     const cur = audio.currentTime;
     const totalDur = audio.duration || 60;
     const start = parseFloat(audioStart) || 0;
-    const end = audioEnd === 'auto' ? totalDur : parseFloat(audioEnd);
+    const end = (!audioEnd || audioEnd === 'auto' || isNaN(parseFloat(audioEnd))) ? totalDur : parseFloat(audioEnd);
     const fIn = parseFloat(fadeIn) || 0;
     const fOut = parseFloat(fadeOut) || 0;
 

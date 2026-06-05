@@ -122,9 +122,9 @@ export default function App() {
 
       const st = useAppStore.getState();
       const audioStart = parseFloat(st.audioStart) || 0;
-      const audioEnd = st.audioEnd;
+      const audioEndRaw = st.audioEnd;
       const dur = audio.duration || 60;
-      const end = audioEnd === 'auto' ? dur : parseFloat(audioEnd);
+      const end = (!audioEndRaw || audioEndRaw === 'auto' || isNaN(parseFloat(audioEndRaw))) ? dur : parseFloat(audioEndRaw);
 
       // ── Enforce trim start boundary ──────────────────────────────────────
       if (audio.currentTime < audioStart) {

@@ -21,9 +21,9 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     const audio = audioRef.current;
     if (!audio || isDragging) return;
     const audioStart = parseFloat(useAppStore.getState().audioStart) || 0;
-    const audioEnd = useAppStore.getState().audioEnd;
+    const audioEndRaw = useAppStore.getState().audioEnd;
     const dur = audio.duration || 60;
-    const end = audioEnd === 'auto' ? dur : parseFloat(audioEnd);
+    const end = (!audioEndRaw || audioEndRaw === 'auto' || isNaN(parseFloat(audioEndRaw))) ? dur : parseFloat(audioEndRaw);
     const elapsed = Math.max(0, audio.currentTime - audioStart);
     const trimDur = end - audioStart;
     setCurrentTime(elapsed);
@@ -65,9 +65,9 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     const audio = audioRef.current;
     if (!audio) return;
     const audioStart = parseFloat(useAppStore.getState().audioStart) || 0;
-    const audioEnd = useAppStore.getState().audioEnd;
+    const audioEndRaw = useAppStore.getState().audioEnd;
     const dur = audio.duration || 60;
-    const end = audioEnd === 'auto' ? dur : parseFloat(audioEnd);
+    const end = (!audioEndRaw || audioEndRaw === 'auto' || isNaN(parseFloat(audioEndRaw))) ? dur : parseFloat(audioEndRaw);
     const trimDur = end - audioStart;
     audio.currentTime = audioStart + (parseFloat(e.target.value) / 100) * trimDur;
     resetScrollY(); // snap canvas to correct lyric after seek

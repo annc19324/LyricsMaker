@@ -97,12 +97,12 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
         <div className="form-grid mt-3">
           <div className="form-group">
             <label htmlFor="input-audio-start">Bắt đầu (s)</label>
-            <input type="text" id="input-audio-start" value={audioStart}
+            <input type="text" id="input-audio-start" value={audioStart} placeholder="0"
               onChange={(e) => set({ audioStart: e.target.value })} />
           </div>
           <div className="form-group">
             <label htmlFor="input-audio-end">Kết thúc (s)</label>
-            <input type="text" id="input-audio-end" value={audioEnd}
+            <input type="text" id="input-audio-end" value={audioEnd} placeholder="Tự động (hết nhạc)"
               onChange={(e) => set({ audioEnd: e.target.value })} />
           </div>
         </div>

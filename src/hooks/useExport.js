@@ -65,10 +65,12 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
     }
 
     const trimStart = parseFloat(state.audioStart) || 0;
-    const trimEnd = state.audioEnd === 'auto' ? (audio.duration || 60) : parseFloat(state.audioEnd);
+    const trimEndRaw = state.audioEnd;
+    const dur = audio.duration || 60;
+    const trimEnd = (!trimEndRaw || trimEndRaw === 'auto' || isNaN(parseFloat(trimEndRaw))) ? dur : parseFloat(trimEndRaw);
     const totalDuration = trimEnd - trimStart;
     const fps = 30;
-    const totalFrames = Math.floor(totalDuration * fps);
+    const totalFrames = Math.max(1, Math.floor(totalDuration * fps));
 
     try {
       // ── Step 1: Decode audio ─────────────────────────────────────────────
