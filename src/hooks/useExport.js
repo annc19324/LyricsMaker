@@ -88,11 +88,12 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
 
       // ── Step 2: Set up Mp4Muxer ──────────────────────────────────────────
       setExportPhase('⏺ Đang render video...');
-      setExportDesc('Tận dụng GPU của thiết bị để render siêu tốc các khung hình.');
+      const exportWidth = Math.floor(canvas.width / 2) * 2;
+      const exportHeight = Math.floor(canvas.height / 2) * 2;
 
       const muxerOptions = {
         target: new Mp4Muxer.ArrayBufferTarget(),
-        video: { codec: 'avc', width: canvas.width, height: canvas.height },
+        video: { codec: 'avc', width: exportWidth, height: exportHeight },
         fastStart: 'in-memory',
       };
       if (audioBuffer) {
@@ -112,8 +113,8 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
 
       const videoCfg = {
         codec: 'avc1.4d002a',
-        width: canvas.width,
-        height: canvas.height,
+        width: exportWidth,
+        height: exportHeight,
         bitrate: 6_000_000,
         framerate: fps,
         hardwareAcceleration: 'prefer-hardware',
@@ -197,6 +198,10 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
         videoFrame.close();
 
+        if (videoEncoder.encodeQueueSize > 30) {
+          await new Promise((r) => setTimeout(r, 5));
+        }
+
         if (frame % 15 === 0) {
           const pct = Math.round((frame / totalFrames) * 90);
           setExportProgress(pct);
@@ -265,6 +270,10 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
 
           audioEncoder.encode(audioData);
           audioData.close();
+
+          if (audioEncoder.encodeQueueSize > 50) {
+            await new Promise((r) => setTimeout(r, 5));
+          }
 
           sampleOffset += chunkSize;
         }
