@@ -20,11 +20,14 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
   const handleTimeUpdate = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || isDragging) return;
-    const audioStart = parseFloat(useAppStore.getState().audioStart) || 0;
-    const audioEndRaw = useAppStore.getState().audioEnd;
+    const state = useAppStore.getState();
+    const offset = (state.previewOffset || 0) / 1000;
+    const audioStart = parseFloat(state.audioStart) || 0;
+    const audioEndRaw = state.audioEnd;
     const dur = audio.duration || 60;
     const end = (!audioEndRaw || audioEndRaw === 'auto' || isNaN(parseFloat(audioEndRaw))) ? dur : parseFloat(audioEndRaw);
-    const elapsed = Math.max(0, audio.currentTime - audioStart);
+    const t = audio.currentTime + offset;
+    const elapsed = Math.max(0, t - audioStart);
     const trimDur = end - audioStart;
     setCurrentTime(elapsed);
     setDuration(trimDur);
@@ -40,8 +43,11 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     if (!audio) return;
     if (audio.paused) {
       // Jump to trim start if behind it
-      const start = parseFloat(useAppStore.getState().audioStart) || 0;
-      if (audio.currentTime < start) audio.currentTime = start;
+      const state = useAppStore.getState();
+      const offset = (state.previewOffset || 0) / 1000;
+      const start = parseFloat(state.audioStart) || 0;
+      const t = audio.currentTime + offset;
+      if (t < start) audio.currentTime = start - offset;
       audio.play();
       setIsPlaying(true);
       if (mediaRefs?.bgVideo?.current) mediaRefs.bgVideo.current.play().catch(() => {});
@@ -64,12 +70,15 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
   const handleProgressChange = (e) => {
     const audio = audioRef.current;
     if (!audio) return;
-    const audioStart = parseFloat(useAppStore.getState().audioStart) || 0;
-    const audioEndRaw = useAppStore.getState().audioEnd;
+    const state = useAppStore.getState();
+    const offset = (state.previewOffset || 0) / 1000;
+    const audioStart = parseFloat(state.audioStart) || 0;
+    const audioEndRaw = state.audioEnd;
     const dur = audio.duration || 60;
     const end = (!audioEndRaw || audioEndRaw === 'auto' || isNaN(parseFloat(audioEndRaw))) ? dur : parseFloat(audioEndRaw);
     const trimDur = end - audioStart;
-    audio.currentTime = audioStart + (parseFloat(e.target.value) / 100) * trimDur;
+    const targetT = audioStart + (parseFloat(e.target.value) / 100) * trimDur;
+    audio.currentTime = targetT - offset;
     resetScrollY(); // snap canvas to correct lyric after seek
   };
 

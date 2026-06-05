@@ -121,33 +121,35 @@ export default function App() {
       PlaybackControls._handleTimeUpdate?.();
 
       const st = useAppStore.getState();
+      const offset = (st.previewOffset || 0) / 1000;
       const audioStart = parseFloat(st.audioStart) || 0;
       const audioEndRaw = st.audioEnd;
       const dur = audio.duration || 60;
       const end = (!audioEndRaw || audioEndRaw === 'auto' || isNaN(parseFloat(audioEndRaw))) ? dur : parseFloat(audioEndRaw);
 
+      const t = audio.currentTime + offset;
+
       // ── Enforce trim start boundary ──────────────────────────────────────
-      if (audio.currentTime < audioStart) {
-        audio.currentTime = audioStart;
+      if (t < audioStart) {
+        audio.currentTime = audioStart - offset;
         return;
       }
 
       // ── Enforce trim end boundary ────────────────────────────────────────
-      if (audio.currentTime >= end) {
+      if (t >= end) {
         audio.pause();
-        audio.currentTime = audioStart;
+        audio.currentTime = audioStart - offset;
         PlaybackControls._setIsPlaying?.(false);
         if (mediaRefs.bgVideo.current) mediaRefs.bgVideo.current.pause();
         if (mediaRefs.mainVideo.current) mediaRefs.mainVideo.current.pause();
       }
 
       // Highlight active timing row
-      const cur = audio.currentTime;
       const timingRows = document.querySelectorAll('.timing-row-new');
       let activePlayIdx = -1;
       st.lyrics.forEach((l, i) => {
-        const t = l.time;
-        if (t !== null && t !== undefined && !(i > 0 && t === 0) && cur >= t) activePlayIdx = i;
+        const timeVal = l.time;
+        if (timeVal !== null && timeVal !== undefined && !(i > 0 && timeVal === 0) && t >= timeVal) activePlayIdx = i;
       });
       timingRows.forEach((row, i) => {
         if (i === activePlayIdx) { row.classList.add('playing'); }
@@ -169,7 +171,8 @@ export default function App() {
     initAudioContext();
     const audio = audioRef.current;
     if (!audio || lyrics.length === 0) return;
-    const cur = audio.currentTime;
+    const offset = (useAppStore.getState().previewOffset || 0) / 1000;
+    const cur = audio.currentTime + offset;
     const idx = useAppStore.getState().syncCursorIndex;
     const updated = [...useAppStore.getState().lyrics];
     updated[idx] = { ...updated[idx], time: cur };
@@ -202,7 +205,9 @@ export default function App() {
         initAudioContext();
         if (audio.paused) {
           const start = parseFloat(st.audioStart) || 0;
-          if (audio.currentTime < start) audio.currentTime = start;
+          const offset = (st.previewOffset || 0) / 1000;
+          const t = audio.currentTime + offset;
+          if (t < start) audio.currentTime = start - offset;
           audio.play();
           PlaybackControls._setIsPlaying?.(true);
         } else {
