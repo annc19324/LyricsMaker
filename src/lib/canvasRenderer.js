@@ -125,7 +125,10 @@ function drawSongInfo(ctx, w, h, visuals, meta, rules) {
   ctx.font = `bold ${fs}px Outfit`;
   drawHighlightedText(ctx, meta.songTitle || '', x, y, fs, 'rgba(255,255,255,0.9)', rules);
   ctx.font = `normal ${Math.round(fs * 0.75)}px Outfit`;
-  const sub = `${meta.songArtist || ''} • ${meta.songChannel || ''}`;
+  const parts = [];
+  if (meta.songArtist) parts.push(meta.songArtist);
+  if (meta.songChannel) parts.push(meta.songChannel);
+  const sub = parts.join(' - ');
   drawHighlightedText(ctx, sub, x, y + fs * 1.4, Math.round(fs * 0.75), 'rgba(255,255,255,0.6)', rules);
   ctx.restore();
 }
