@@ -1,4 +1,4 @@
-﻿/* --- LYRICS MAKER STUDIO CSS --- */
+/* --- LYRICS MAKER STUDIO CSS --- */
 
 :root {
   --color-bg: #0b0b0e;
@@ -1373,7 +1373,7 @@ canvas {
 /* ===================== TOAST NOTIFICATION ===================== */
 #toast-container {
   position: fixed;
-  bottom: 24px;
+  top: 24px;
   right: 24px;
   z-index: 9999;
   display: flex;

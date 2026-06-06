@@ -36,6 +36,18 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
     const cleared = lyrics.map((l) => ({ ...l, time: 0 }));
     updateLyrics(cleared);
     setSyncCursor(0);
+
+    if (audioRef && audioRef.current) {
+      const state = useAppStore.getState();
+      const offset = (state.previewOffset || 0) / 1000;
+      const start = parseFloat(state.audioStart) || 0;
+      audioRef.current.currentTime = start - offset;
+
+      if (audioRef.current.paused) {
+        const playBtn = document.querySelector('.play-btn');
+        if (playBtn) playBtn.click();
+      }
+    }
   };
 
   const handleTimeChange = (idx, raw) => {

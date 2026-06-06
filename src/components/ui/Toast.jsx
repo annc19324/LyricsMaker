@@ -16,7 +16,13 @@ export function ToastContainer() {
 
   const add = useCallback((message, type, duration) => {
     const id = ++counterRef.current;
-    setToasts((prev) => [...prev, { id, message, type, exiting: false }]);
+    setToasts((prev) => {
+      let next = [...prev, { id, message, type, exiting: false }];
+      if (next.length > 3) {
+        next = next.slice(next.length - 3);
+      }
+      return next;
+    });
     setTimeout(() => {
       setToasts((prev) => prev.map((t) => t.id === id ? { ...t, exiting: true } : t));
       setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 350);

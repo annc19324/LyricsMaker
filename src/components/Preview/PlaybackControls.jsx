@@ -2,7 +2,7 @@
  * components/Preview/PlaybackControls.jsx
  * Playback bar: progress slider, play/pause, skip, volume, mark timing button.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import useAppStore from '../../store/useAppStore';
 import { formatTime } from '../../lib/lyricsParser';
 import { resetScrollY } from '../../lib/canvasRenderer';
@@ -10,6 +10,8 @@ import { resetScrollY } from '../../lib/canvasRenderer';
 export default function PlaybackControls({ audioRef, initAudioContext, onMarkTiming, mediaRefs }) {
   const volume = useAppStore((s) => s.volume);
   const set = useAppStore((s) => s.set);
+  const audioStartStore = useAppStore((s) => s.audioStart);
+  const audioEndStore = useAppStore((s) => s.audioEnd);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -32,6 +34,11 @@ export default function PlaybackControls({ audioRef, initAudioContext, onMarkTim
     setCurrentTime(elapsed);
     setDuration(trimDur);
   }, [audioRef, isDragging]);
+
+  // Update visually when audioStart or audioEnd is changed from inputs
+  useEffect(() => {
+    handleTimeUpdate();
+  }, [audioStartStore, audioEndStore, handleTimeUpdate]);
 
   // Expose event handlers to be attached in App
   PlaybackControls._handleTimeUpdate = handleTimeUpdate;
