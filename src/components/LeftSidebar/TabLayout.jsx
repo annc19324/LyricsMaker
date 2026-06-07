@@ -14,8 +14,17 @@ const FONTS = [
   { value: 'Outfit', label: 'Outfit (Hiện đại)' },
   { value: 'Be Vietnam Pro', label: 'Be Vietnam Pro (Rõ nét)' },
   { value: 'Montserrat', label: 'Montserrat (Mạnh mẽ)' },
+  { value: 'Inter', label: 'Inter (Tối giản / UI)' },
+  { value: 'Lexend', label: 'Lexend (Dễ đọc / Tối ưu)' },
+  { value: 'Nunito', label: 'Nunito (Bo tròn dễ thương)' },
+  { value: 'Quicksand', label: 'Quicksand (Nhẹ nhàng)' },
+  { value: 'Comfortaa', label: 'Comfortaa (Độc đáo)' },
+  { value: 'Oswald', label: 'Oswald (Hẹp cao cá tính)' },
+  { value: 'Lora', label: 'Lora (Serif Cổ điển)' },
   { value: 'Playfair Display', label: 'Playfair Display (Nghệ thuật)' },
-  { value: 'Pacifico', label: 'Pacifico (Viết tay)' },
+  { value: 'Pacifico', label: 'Pacifico (Viết tay cá tính)' },
+  { value: 'Dancing Script', label: 'Dancing Script (Viết tay uốn lượn)' },
+  { value: 'Patrick Hand', label: 'Patrick Hand (Viết tay tự nhiên)' },
   { value: 'sans-serif', label: 'System Sans-Serif' },
 ];
 

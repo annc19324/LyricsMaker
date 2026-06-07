@@ -162,7 +162,9 @@ const useAppStore = create((set, get) => ({
   },
 
   updateLyrics(lyrics) {
-    set({ lyrics });
+    const timings = lyrics.map((l) => l.time);
+    set({ lyrics, timings });
+    persistGlobal({ ...get(), timings });
   },
 
   setSyncCursor(index) {
@@ -172,8 +174,9 @@ const useAppStore = create((set, get) => ({
   updateTimingAt(index, time) {
     const lyrics = [...get().lyrics];
     lyrics[index] = { ...lyrics[index], time };
-    set({ lyrics });
-    persistGlobal({ ...get(), timings: lyrics.map((l) => l.time) });
+    const timings = lyrics.map((l) => l.time);
+    set({ lyrics, timings });
+    persistGlobal({ ...get(), timings });
   },
 
   setHighlightRules(rules) {
