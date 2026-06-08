@@ -25,9 +25,16 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
     const box = document.getElementById('aspect-ratio-box');
     if (!canvas || !box) return;
 
-    if (activeRatio === '16:9') { canvas.width = 1280; canvas.height = 720; box.style.aspectRatio = '16/9'; }
-    else if (activeRatio === '9:16') { canvas.width = 720; canvas.height = 1280; box.style.aspectRatio = '9/16'; }
-    else { canvas.width = 720; canvas.height = 720; box.style.aspectRatio = '1/1'; }
+    const dpr = window.devicePixelRatio || 1;
+    let logicalW = 1280, logicalH = 720;
+    if (activeRatio === '16:9') { logicalW = 1280; logicalH = 720; box.style.aspectRatio = '16/9'; }
+    else if (activeRatio === '9:16') { logicalW = 720; logicalH = 1280; box.style.aspectRatio = '9/16'; }
+    else { logicalW = 720; logicalH = 720; box.style.aspectRatio = '1/1'; }
+
+    canvas.width = logicalW * dpr;
+    canvas.height = logicalH * dpr;
+    canvas.dataset.logicalWidth = logicalW;
+    canvas.dataset.logicalHeight = logicalH;
 
     const parent = box.parentElement;
     if (!parent) return;

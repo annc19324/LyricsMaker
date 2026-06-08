@@ -37,14 +37,27 @@ export function resetScrollY() {}
  * @param {number} audioDuration  - total audio duration in seconds
  */
 export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, highlightRules = [], audioDuration = 60) {
-  const w = canvas.width;
-  const h = canvas.height;
+  let w = canvas.width;
+  let h = canvas.height;
+
+  ctx.save();
+  
+  // High-DPI scaling for sharp rendering
+  if (canvas.dataset.logicalWidth && canvas.dataset.logicalHeight) {
+    const dpr = window.devicePixelRatio || 1;
+    w = parseFloat(canvas.dataset.logicalWidth);
+    h = parseFloat(canvas.dataset.logicalHeight);
+    ctx.scale(dpr, dpr);
+  }
 
   // Clear
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, w, h);
 
-  if (!visuals) return;
+  if (!visuals) {
+    ctx.restore();
+    return;
+  }
 
   // 1. Background
   drawBackground(ctx, w, h, visuals, media);
@@ -71,6 +84,8 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
 
   // 7. Lyrics
   drawLyrics(ctx, w, h, curTime, visuals, lyrics, highlightRules, audioDuration);
+
+  ctx.restore();
 }
 
 // ── Background ────────────────────────────────────────────────────────────────
@@ -309,6 +324,21 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     const yPos = lyricY + i * lineSpacing - currentScrollY;
     const scale = isActive ? (visuals.lyricZoom || 1.1) : 1.0;
 
+    let lineOpacity = 1.0;
+    if (!isActive) {
+      const topY = lyricY - linesAbove * lineSpacing;
+      const bottomY = lyricY + linesBelow * lineSpacing;
+      
+      let progressDown = 0;
+      if (bottomY > topY) {
+        progressDown = (yPos - topY) / (bottomY - topY);
+      }
+      progressDown = Math.max(0, Math.min(1, progressDown));
+      
+      // Mờ dần từ trên xuống dưới: trên cùng (0) -> 0.85, dưới cùng (1) -> 0.1
+      lineOpacity = 0.85 - (0.75 * progressDown);
+    }
+
     ctx.save();
     if (isActive) {
       const weight = visuals.lyricBoldEnabled !== false ? 'bold' : 'normal';
@@ -320,7 +350,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
       }
     } else {
       ctx.font = `normal ${fontSize}px "${visuals.lyricFontFamily}"`;
-      ctx.fillStyle = hexToRgba(visuals.colorLyricBase, 0.4);
+      ctx.fillStyle = hexToRgba(visuals.colorLyricBase, lineOpacity);
       ctx.shadowBlur = 0;
     }
 
@@ -336,7 +366,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
 
     subLines.forEach((subText, subIdx) => {
       const subLineY = yPos + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
-      let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, 0.4);
+      let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
       if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
       drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive);
 
