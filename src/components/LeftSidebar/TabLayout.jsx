@@ -135,9 +135,12 @@ export default function TabLayout() {
           onChange={(val) => sv('lyricFontSize', val)} />
         <ToggleRow id="toggle-lyric-bold" label="In đậm dòng chính"
           checked={v?.lyricBoldEnabled !== false} onChange={(c) => sv('lyricBoldEnabled', c)} />
-        <SliderRow id="slider-line-spacing" label="Khoảng cách dòng" min={0.8} max={3.0} step={0.1}
+        <SliderRow id="slider-line-spacing" label="Khoảng cách câu" min={0.8} max={3.0} step={0.1}
           value={v?.lineSpacing ?? 1.5} displayValue={`${v?.lineSpacing ?? 1.5}x`}
           onChange={(val) => sv('lineSpacing', val)} />
+        <SliderRow id="slider-subline-spacing" label="Khoảng cách dòng (trong 1 câu)" min={0.8} max={3.0} step={0.1}
+          value={v?.subLineSpacing ?? 1.2} displayValue={`${v?.subLineSpacing ?? 1.2}x`}
+          onChange={(val) => sv('subLineSpacing', val)} />
         <div className="form-group">
           <label>Căn Lề (Align)</label>
           <div className="align-selector">

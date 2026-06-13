@@ -30,7 +30,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   previewZoom: 100,
   visuals: {
     '16:9': {
-      bgBlur: 0, lineSpacing: 1.5, karaokeEnabled: true, transitionEnabled: true,
+      bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, karaokeEnabled: true, transitionEnabled: true,
       transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 220,
       mainX: 30, mainY: 50, lyricFontFamily: 'Montserrat', lyricFontSize: 28,
       lyricAlign: 'center', lyricX: 70, lyricY: 50, linesAbove: 0, linesBelow: 'auto',
@@ -46,7 +46,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       songInfoX: 50, songInfoY: 8, songInfoFontSize: 20, songInfoAlign: 'center',
     },
     '9:16': {
-      bgBlur: 0, lineSpacing: 1.5, karaokeEnabled: true, transitionEnabled: true,
+      bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, karaokeEnabled: true, transitionEnabled: true,
       transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 200,
       mainX: 50, mainY: 30, lyricFontFamily: 'Montserrat', lyricFontSize: 24,
       lyricAlign: 'center', lyricX: 50, lyricY: 70, linesAbove: 0, linesBelow: 'auto',
@@ -62,7 +62,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       songInfoX: 50, songInfoY: 8, songInfoFontSize: 20, songInfoAlign: 'center',
     },
     '1:1': {
-      bgBlur: 0, lineSpacing: 1.5, karaokeEnabled: true, transitionEnabled: true,
+      bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, karaokeEnabled: true, transitionEnabled: true,
       transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 180,
       mainX: 50, mainY: 35, lyricFontFamily: 'Montserrat', lyricFontSize: 26,
       lyricAlign: 'center', lyricX: 50, lyricY: 75, linesAbove: 0, linesBelow: 'auto',

@@ -360,7 +360,8 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     else if (visuals.lyricAlign === 'right') { ctx.textAlign = 'right'; textX = lyricX + (visuals.frameWidth ? visuals.frameWidth / 2.2 : 200); }
 
     const subLines = lyrics[i].text.replace(/\r/g, '').split('\n');
-    const subLineSpacing = fontSize * 1.2;
+    const subLineSpacingMult = visuals.subLineSpacing !== undefined ? visuals.subLineSpacing : 1.2;
+    const subLineSpacing = fontSize * subLineSpacingMult;
     const karaokeSpeedMult = visuals.karaokeSpeed !== undefined ? visuals.karaokeSpeed : 1.0;
     const karaokeEnabled = visuals.karaokeEnabled !== false && karaokeSpeedMult > 0;
 
