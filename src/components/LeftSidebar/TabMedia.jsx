@@ -116,10 +116,29 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     }
   };
 
+  const handleClearAudio = () => {
+    setAudioInfo('Không dùng nhạc (Im lặng)');
+    loadAudioFile(null, 'none');
+    removeFileFromIDB('audio').catch(() => {});
+  };
+
   const handleResetAudio = () => {
     setAudioInfo('Đang dùng nhạc demo mặc định');
-    loadAudioFile(null);
+    loadAudioFile(null, 'default');
     removeFileFromIDB('audio').catch(() => {});
+  };
+
+  const handleClearBg = () => {
+    setBgImageInfo('Không dùng ảnh/video nền');
+    setBgVideoInfo('Không dùng ảnh/video nền');
+    mediaRefs.bgImage.current.src = '';
+    mediaRefs.bgVideo.current.pause();
+    mediaRefs.bgVideo.current.removeAttribute('src');
+    mediaRefs.bgVideo.current.load();
+    mediaRefs.bgMediaType.current = 'none';
+    setBgType('image');
+    removeFileFromIDB('bg_image').catch(() => {});
+    removeFileFromIDB('bg_video').catch(() => {});
   };
 
   const handleResetBg = () => {
@@ -129,10 +148,23 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     mediaRefs.bgVideo.current.pause();
     mediaRefs.bgVideo.current.removeAttribute('src');
     mediaRefs.bgVideo.current.load();
-    mediaRefs.bgMediaType.current = 'image';
+    mediaRefs.bgMediaType.current = 'default';
     setBgType('image');
     removeFileFromIDB('bg_image').catch(() => {});
     removeFileFromIDB('bg_video').catch(() => {});
+  };
+
+  const handleClearMain = () => {
+    setMainImageInfo('Không dùng ảnh/video chính');
+    setMainVideoInfo('Không dùng ảnh/video chính');
+    mediaRefs.mainImage.current.src = '';
+    mediaRefs.mainVideo.current.pause();
+    mediaRefs.mainVideo.current.removeAttribute('src');
+    mediaRefs.mainVideo.current.load();
+    mediaRefs.mainMediaType.current = 'none';
+    setMainType('image');
+    removeFileFromIDB('main_image').catch(() => {});
+    removeFileFromIDB('main_video').catch(() => {});
   };
 
   const handleResetMain = () => {
@@ -142,7 +174,7 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     mediaRefs.mainVideo.current.pause();
     mediaRefs.mainVideo.current.removeAttribute('src');
     mediaRefs.mainVideo.current.load();
-    mediaRefs.mainMediaType.current = 'image';
+    mediaRefs.mainMediaType.current = 'default';
     setMainType('image');
     removeFileFromIDB('main_image').catch(() => {});
     removeFileFromIDB('main_video').catch(() => {});
@@ -175,9 +207,14 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
         <h3><i className="fa-solid fa-file-audio"></i> Nhạc Nền (Sound)</h3>
         <FileUploadZone id="upload-audio-zone" accept="audio/*,video/*" icon="fa-cloud-arrow-up"
           label="Kéo thả hoặc click để chọn File Nhạc/Video" fileInfo={audioInfo} onFile={handleAudio} />
-        <button className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }} onClick={handleResetAudio}>
-          <i className="fa-solid fa-trash"></i> Xóa nhạc (Dùng mặc định)
-        </button>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleClearAudio}>
+            <i className="fa-solid fa-trash"></i> Xóa
+          </button>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleResetAudio}>
+            <i className="fa-solid fa-rotate-left"></i> Mặc định
+          </button>
+        </div>
         <div className="form-grid mt-3">
           <div className="form-group">
             <label htmlFor="input-audio-start">Bắt đầu (s)</label>
@@ -220,9 +257,14 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
           <FileUploadZone id="upload-bg-video-zone" accept="video/*" icon="fa-video"
             label="Chọn Video Nền" fileInfo={bgVideoInfo} onFile={handleBgVideo} />
         )}
-        <button className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }} onClick={handleResetBg}>
-          <i className="fa-solid fa-trash"></i> Xóa ảnh/video nền (Dùng mặc định)
-        </button>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleClearBg}>
+            <i className="fa-solid fa-trash"></i> Xóa nền
+          </button>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleResetBg}>
+            <i className="fa-solid fa-rotate-left"></i> Mặc định
+          </button>
+        </div>
       </div>
 
       {/* Main Media */}
@@ -241,9 +283,14 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
           <FileUploadZone id="upload-main-video-zone" accept="video/*" icon="fa-video"
             label="Chọn Video Chính" fileInfo={mainVideoInfo} onFile={handleMainVideo} />
         )}
-        <button className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }} onClick={handleResetMain}>
-          <i className="fa-solid fa-trash"></i> Xóa ảnh/video chính (Dùng mặc định)
-        </button>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleClearMain}>
+            <i className="fa-solid fa-trash"></i> Xóa ảnh/video chính
+          </button>
+          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleResetMain}>
+            <i className="fa-solid fa-rotate-left"></i> Mặc định
+          </button>
+        </div>
       </div>
 
       {/* Time Offset Controls */}

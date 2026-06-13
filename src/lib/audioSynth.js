@@ -53,6 +53,18 @@ export function generateDreamySynth() {
   });
 }
 
+export function generateSilentAudio() {
+  return new Promise((resolve, reject) => {
+    const sampleRate = 44100;
+    const duration = 60;
+    const offlineCtx = new OfflineAudioContext(1, sampleRate * duration, sampleRate);
+    offlineCtx
+      .startRendering()
+      .then((buffer) => resolve(bufferToWav(buffer)))
+      .catch(reject);
+  });
+}
+
 function bufferToWav(buffer) {
   const numChan = buffer.numberOfChannels;
   const length = buffer.length * numChan * 2 + 44;

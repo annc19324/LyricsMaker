@@ -60,7 +60,9 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
   }
 
   // 1. Background
-  drawBackground(ctx, w, h, visuals, media);
+  if (media.bgMediaType !== 'none') {
+    drawBackground(ctx, w, h, visuals, media);
+  }
 
   // 2. Dark overlay
   if (visuals.bgOverlayOpacity > 0) {
@@ -72,7 +74,10 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
   drawSongInfo(ctx, w, h, visuals, meta, highlightRules);
 
   // 4. Main media (disc / image / video)
-  const mainOffset = drawMainMedia(ctx, w, h, curTime, visuals, media);
+  let mainOffset = { x: 0, y: 0 };
+  if (media.mainMediaType !== 'none') {
+    mainOffset = drawMainMedia(ctx, w, h, curTime, visuals, media);
+  }
 
   // 5. Fog
   if (visuals.fogIntensity > 0) {

@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useCallback } from 'react';
 import useAppStore from '../store/useAppStore';
-import { generateDreamySynth } from '../lib/audioSynth';
+import { generateDreamySynth, generateSilentAudio } from '../lib/audioSynth';
 
 export function useAudio(audioRef) {
   const audioCtxRef = useRef(null);
@@ -81,10 +81,11 @@ export function useAudio(audioRef) {
     gain.gain.setValueAtTime(targetGain, ctx.currentTime);
   }, [audioRef, audioStart, audioEnd, fadeIn, fadeOut, volume]);
 
-  const loadAudioFile = useCallback((file) => {
+  const loadAudioFile = useCallback((file, type = 'default') => {
     if (!file) {
       audioFileLoadedRef.current = false;
-      generateDreamySynth().then((wavBlob) => {
+      const synthPromise = type === 'none' ? generateSilentAudio() : generateDreamySynth();
+      synthPromise.then((wavBlob) => {
         if (audioRef.current) {
           const url = URL.createObjectURL(wavBlob);
           audioRef.current.src = url;
