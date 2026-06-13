@@ -61,7 +61,7 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
 
   // 1. Background
   if (media.bgMediaType !== 'none') {
-    drawBackground(ctx, w, h, visuals, media);
+    drawBackground(ctx, w, h, curTime, visuals, media);
   }
 
   // 2. Dark overlay
@@ -94,8 +94,19 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
 }
 
 // ── Background ────────────────────────────────────────────────────────────────
-function drawBackground(ctx, w, h, visuals, media) {
+function drawBackground(ctx, w, h, curTime, visuals, media) {
   ctx.save();
+  
+  if (visuals.bgFloatEnabled) {
+    const bgScale = 1.1;
+    const speed = visuals.bgFloatSpeed || 1.0;
+    const offsetX = Math.sin(curTime * 0.8 * speed) * (w * 0.05);
+    const offsetY = Math.cos(curTime * 1.1 * speed) * (h * 0.05);
+    ctx.translate(w / 2 + offsetX, h / 2 + offsetY);
+    ctx.scale(bgScale, bgScale);
+    ctx.translate(-w / 2, -h / 2);
+  }
+
   let loaded = false;
 
   if (media.bgMediaType === 'image' && media.bgImage?.src) {

@@ -86,6 +86,11 @@ export default function TabLayout() {
         <SliderRow id="slider-bg-overlay" label="Độ mờ nền / Tối (Dark Overlay)" min={0} max={100}
           value={v?.bgOverlayOpacity ?? 0} displayValue={`${v?.bgOverlayOpacity ?? 0}%`}
           onChange={(val) => sv('bgOverlayOpacity', val)} />
+        <ToggleRow id="toggle-bg-float" label="Hiệu ứng nền trôi nổi"
+          checked={v?.bgFloatEnabled === true} onChange={(c) => sv('bgFloatEnabled', c)} />
+        <SliderRow id="slider-bg-float-speed" label="Tốc độ trôi nền" min={0.1} max={5} step={0.1}
+          value={v?.bgFloatSpeed ?? 1.0} displayValue={`${v?.bgFloatSpeed ?? 1.0}x`}
+          onChange={(val) => sv('bgFloatSpeed', val)} />
       </div>
 
       {/* Main Media Settings */}
