@@ -82,6 +82,18 @@ export function useAudio(audioRef) {
   }, [audioRef, audioStart, audioEnd, fadeIn, fadeOut, volume]);
 
   const loadAudioFile = useCallback((file) => {
+    if (!file) {
+      audioFileLoadedRef.current = false;
+      generateDreamySynth().then((wavBlob) => {
+        if (audioRef.current) {
+          const url = URL.createObjectURL(wavBlob);
+          audioRef.current.src = url;
+          audioRef.current.load();
+          audioRef.current.currentTime = 0;
+        }
+      }).catch(() => {});
+      return;
+    }
     audioFileLoadedRef.current = true;
     if (audioRef.current) {
       const url = URL.createObjectURL(file);

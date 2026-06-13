@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import useAppStore from '../../store/useAppStore';
 import FileUploadZone from '../ui/FileUploadZone';
-import { saveFileToIDB, loadFileFromIDB } from '../../lib/idb';
+import { saveFileToIDB, loadFileFromIDB, removeFileFromIDB } from '../../lib/idb';
 
 export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const songTitle = useAppStore((s) => s.songTitle);
@@ -116,6 +116,38 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     }
   };
 
+  const handleResetAudio = () => {
+    setAudioInfo('Đang dùng nhạc demo mặc định');
+    loadAudioFile(null);
+    removeFileFromIDB('audio').catch(() => {});
+  };
+
+  const handleResetBg = () => {
+    setBgImageInfo('Mặc định: Gradient tối');
+    setBgVideoInfo('Chưa có video nền');
+    mediaRefs.bgImage.current.src = '';
+    mediaRefs.bgVideo.current.pause();
+    mediaRefs.bgVideo.current.removeAttribute('src');
+    mediaRefs.bgVideo.current.load();
+    mediaRefs.bgMediaType.current = 'image';
+    setBgType('image');
+    removeFileFromIDB('bg_image').catch(() => {});
+    removeFileFromIDB('bg_video').catch(() => {});
+  };
+
+  const handleResetMain = () => {
+    setMainImageInfo('Mặc định: Đĩa Vinyl');
+    setMainVideoInfo('Chưa có video chính');
+    mediaRefs.mainImage.current.src = '';
+    mediaRefs.mainVideo.current.pause();
+    mediaRefs.mainVideo.current.removeAttribute('src');
+    mediaRefs.mainVideo.current.load();
+    mediaRefs.mainMediaType.current = 'image';
+    setMainType('image');
+    removeFileFromIDB('main_image').catch(() => {});
+    removeFileFromIDB('main_video').catch(() => {});
+  };
+
   return (
     <>
       {/* Song Information */}
@@ -143,6 +175,9 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
         <h3><i className="fa-solid fa-file-audio"></i> Nhạc Nền (Sound)</h3>
         <FileUploadZone id="upload-audio-zone" accept="audio/*,video/*" icon="fa-cloud-arrow-up"
           label="Kéo thả hoặc click để chọn File Nhạc/Video" fileInfo={audioInfo} onFile={handleAudio} />
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }} onClick={handleResetAudio}>
+          <i className="fa-solid fa-trash"></i> Xóa nhạc (Dùng mặc định)
+        </button>
         <div className="form-grid mt-3">
           <div className="form-group">
             <label htmlFor="input-audio-start">Bắt đầu (s)</label>
@@ -185,6 +220,9 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
           <FileUploadZone id="upload-bg-video-zone" accept="video/*" icon="fa-video"
             label="Chọn Video Nền" fileInfo={bgVideoInfo} onFile={handleBgVideo} />
         )}
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }} onClick={handleResetBg}>
+          <i className="fa-solid fa-trash"></i> Xóa ảnh/video nền (Dùng mặc định)
+        </button>
       </div>
 
       {/* Main Media */}
@@ -203,6 +241,9 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
           <FileUploadZone id="upload-main-video-zone" accept="video/*" icon="fa-video"
             label="Chọn Video Chính" fileInfo={mainVideoInfo} onFile={handleMainVideo} />
         )}
+        <button className="btn btn-secondary" style={{ width: '100%', marginTop: '10px' }} onClick={handleResetMain}>
+          <i className="fa-solid fa-trash"></i> Xóa ảnh/video chính (Dùng mặc định)
+        </button>
       </div>
 
       {/* Time Offset Controls */}
