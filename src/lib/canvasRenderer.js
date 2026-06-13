@@ -386,7 +386,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
       const subLineY = yPos + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
       let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
       if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
-      drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive, highlightScale);
+      drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive && !karaokeEnabled, highlightScale);
 
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
         const textWidth = ctx.measureText(subText).width;
