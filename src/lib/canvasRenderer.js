@@ -380,12 +380,13 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     const subLineSpacing = fontSize * subLineSpacingMult;
     const karaokeSpeedMult = visuals.karaokeSpeed !== undefined ? visuals.karaokeSpeed : 1.0;
     const karaokeEnabled = visuals.karaokeEnabled !== false && karaokeSpeedMult > 0;
+    const highlightScale = visuals.highlightFontScale !== undefined ? visuals.highlightFontScale : 1.0;
 
     subLines.forEach((subText, subIdx) => {
       const subLineY = yPos + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
       let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
       if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
-      drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive);
+      drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive, highlightScale);
 
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
         const textWidth = ctx.measureText(subText).width;
@@ -409,7 +410,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
         else if (visuals.lyricAlign === 'right') startX = textX - textWidth;
         ctx.rect(startX - 10, subLineY - fontSize * scale * 0.8, textWidth * progress + 10, fontSize * scale * 1.6);
         ctx.clip();
-        drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive, rules, true);
+        drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive, rules, true, highlightScale);
         ctx.restore();
       }
     });
@@ -504,7 +505,7 @@ function drawDefaultVinyl(ctx, x, y, size, rotation) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, rules = [], shouldHighlight = true) {
+function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, rules = [], shouldHighlight = true, highlightScale = 1.0) {
   if (!text) return;
   if (!rules.length) { ctx.fillStyle = baseColor; ctx.fillText(text, x, y); return; }
 
@@ -518,13 +519,13 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, rules = [], s
       if (text.startsWith(open, cursor)) {
         const endIdx = close ? text.indexOf(close, cursor + open.length) : -1;
         if (close && endIdx !== -1) {
-          segments.push({ text: text.slice(cursor + open.length, endIdx), color: shouldHighlight ? rule.color : baseColor });
+          segments.push({ text: text.slice(cursor + open.length, endIdx), color: shouldHighlight ? rule.color : baseColor, isSpecial: true });
           cursor = endIdx + close.length;
           matched = true; break;
         } else if (!close) {
           let end = cursor + open.length;
           while (end < text.length && text[end] !== ' ') end++;
-          segments.push({ text: text.slice(cursor + open.length, end), color: shouldHighlight ? rule.color : baseColor });
+          segments.push({ text: text.slice(cursor + open.length, end), color: shouldHighlight ? rule.color : baseColor, isSpecial: true });
           cursor = end; matched = true; break;
         }
       }
@@ -535,13 +536,20 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, rules = [], s
         const idx = text.indexOf(rule.pattern, cursor);
         if (idx !== -1 && idx < nextSpecial) nextSpecial = idx;
       }
-      if (nextSpecial > cursor) { segments.push({ text: text.slice(cursor, nextSpecial), color: baseColor }); cursor = nextSpecial; }
-      else { segments.push({ text: text[cursor], color: baseColor }); cursor++; }
+      if (nextSpecial > cursor) { segments.push({ text: text.slice(cursor, nextSpecial), color: baseColor, isSpecial: false }); cursor = nextSpecial; }
+      else { segments.push({ text: text[cursor], color: baseColor, isSpecial: false }); cursor++; }
     }
   }
 
+  const baseFont = ctx.font;
+  const specialFont = highlightScale !== 1.0 ? baseFont.replace(/\d+(?:\.\d+)?px/, `${fontSize * highlightScale}px`) : baseFont;
+
   let totalW = 0;
-  segments.forEach((s) => { totalW += ctx.measureText(s.text).width; });
+  segments.forEach((s) => { 
+    ctx.font = s.isSpecial ? specialFont : baseFont;
+    totalW += ctx.measureText(s.text).width; 
+  });
+
   const align = ctx.textAlign;
   let drawX = x;
   if (align === 'center') drawX = x - totalW / 2;
@@ -550,8 +558,14 @@ function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, rules = [], s
   const savedAlign = ctx.textAlign;
   ctx.textAlign = 'left';
   let cx = drawX;
-  segments.forEach((s) => { ctx.fillStyle = s.color; ctx.fillText(s.text, cx, y); cx += ctx.measureText(s.text).width; });
+  segments.forEach((s) => { 
+    ctx.font = s.isSpecial ? specialFont : baseFont;
+    ctx.fillStyle = s.color; 
+    ctx.fillText(s.text, cx, y); 
+    cx += ctx.measureText(s.text).width; 
+  });
   ctx.textAlign = savedAlign;
+  ctx.font = baseFont;
 }
 
 function drawCover(ctx, source, dx, dy, dw, dh) {

@@ -146,6 +146,9 @@ export default function TabLayout() {
         <SliderRow id="slider-subline-spacing" label="Khoảng cách dòng (trong 1 câu)" min={0.8} max={3.0} step={0.1}
           value={v?.subLineSpacing ?? 1.2} displayValue={`${v?.subLineSpacing ?? 1.2}x`}
           onChange={(val) => sv('subLineSpacing', val)} />
+        <SliderRow id="slider-highlight-scale" label="Tỷ lệ cỡ chữ kí tự đặc biệt" min={0.5} max={2.0} step={0.05}
+          value={v?.highlightFontScale ?? 1.0} displayValue={`${v?.highlightFontScale ?? 1.0}x`}
+          onChange={(val) => sv('highlightFontScale', val)} />
         <div className="form-group">
           <label>Căn Lề (Align)</label>
           <div className="align-selector">

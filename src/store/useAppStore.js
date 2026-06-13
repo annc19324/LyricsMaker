@@ -31,7 +31,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   visuals: {
     '16:9': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
-      transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 220,
+      transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 220, highlightFontScale: 1.0,
       mainX: 30, mainY: 50, lyricFontFamily: 'Montserrat', lyricFontSize: 28,
       lyricAlign: 'center', lyricX: 70, lyricY: 50, linesAbove: 0, linesBelow: 'auto',
       floatEnabled: true, floatSpeed: 1.0, fogIntensity: 30, colorLyricBase: '#ffffff',
@@ -47,7 +47,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
     },
     '9:16': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
-      transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 200,
+      transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 200, highlightFontScale: 1.0,
       mainX: 50, mainY: 30, lyricFontFamily: 'Montserrat', lyricFontSize: 24,
       lyricAlign: 'center', lyricX: 50, lyricY: 70, linesAbove: 0, linesBelow: 'auto',
       floatEnabled: true, floatSpeed: 1.2, fogIntensity: 40, colorLyricBase: '#ffffff',
@@ -63,7 +63,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
     },
     '1:1': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
-      transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 180,
+      transitionSpeed: 0.1, bgOverlayOpacity: 0, mainShape: 'circle', mainSize: 180, highlightFontScale: 1.0,
       mainX: 50, mainY: 35, lyricFontFamily: 'Montserrat', lyricFontSize: 26,
       lyricAlign: 'center', lyricX: 50, lyricY: 75, linesAbove: 0, linesBelow: 'auto',
       floatEnabled: true, floatSpeed: 1.0, fogIntensity: 25, colorLyricBase: '#ffffff',
