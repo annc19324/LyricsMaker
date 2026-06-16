@@ -76,7 +76,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         const audioResp = await fetch(audio.src);
         if (!audioResp.ok) throw new Error(`HTTP ${audioResp.status}`);
         const arrayBuf = await audioResp.arrayBuffer();
-        const offlineCtx = new OfflineAudioContext(2, 44100, 44100);
+        const offlineCtx = new (window.AudioContext || window.webkitAudioContext)();
         audioBuffer = await offlineCtx.decodeAudioData(arrayBuf);
       } catch (e) {
         console.warn('[Export] Audio decode failed, exporting silent video:', e);
