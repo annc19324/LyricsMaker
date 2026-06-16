@@ -158,6 +158,12 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
       // Reset scroll state so export starts from clean position (same as after seek in preview)
       resetScrollY();
 
+      let audioSampleOffset = 0;
+      const aacFrameSize = 1024;
+      const audioStartOffset = audioBuffer ? Math.floor(trimStart * sampleRate) : 0;
+      const audioEndOffset = audioBuffer ? Math.floor(trimEnd * sampleRate) : 0;
+      const totalAudioSamples = audioEndOffset - audioStartOffset;
+
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelRef.current) break;
 
@@ -207,6 +213,71 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         videoEncoder.encode(videoFrame, { keyFrame: frame % (fps * 2) === 0 });
         videoFrame.close();
 
+        // ── Encode audio chunks interleaved with video ──
+        if (audioEncoder && audioBuffer) {
+          const targetAudioTime = (frame + 1) / fps;
+          const targetSampleOffset = Math.min(totalAudioSamples, Math.floor(targetAudioTime * sampleRate));
+
+          while (audioSampleOffset < targetSampleOffset || (frame === totalFrames - 1 && audioSampleOffset < totalAudioSamples)) {
+            if (cancelRef.current) break;
+
+            const remaining = totalAudioSamples - audioSampleOffset;
+            const chunkSize = Math.min(aacFrameSize, remaining);
+
+            // Wait for full AAC frame unless it's the very last chunk of the file
+            if (chunkSize < aacFrameSize && frame < totalFrames - 1) {
+              break;
+            }
+
+            const currentSampleIndex = audioStartOffset + audioSampleOffset;
+            const planeData = new Float32Array(chunkSize * numChannels);
+
+            for (let ch = 0; ch < numChannels; ch++) {
+              const src = audioBuffer.getChannelData(ch);
+              const planeOffset = ch * chunkSize;
+              for (let s = 0; s < chunkSize; s++) {
+                let sample = src[currentSampleIndex + s] ?? 0;
+
+                // Apply volume
+                sample *= volumeFactor;
+
+                // Fade in/out
+                const elapsed = (currentSampleIndex + s) / sampleRate - trimStart;
+                if (fadeIn > 0 && elapsed < fadeIn) {
+                  sample *= Math.max(0, elapsed / fadeIn);
+                }
+                if (fadeOut > 0 && elapsed > totalDuration - fadeOut) {
+                  sample *= Math.max(0, (totalDuration - elapsed) / fadeOut);
+                }
+
+                planeData[planeOffset + s] = sample;
+              }
+            }
+
+            const audioData = new AudioData({
+              format: 'f32-planar',
+              sampleRate,
+              numberOfFrames: chunkSize,
+              numberOfChannels: numChannels,
+              timestamp: Math.round((audioSampleOffset / sampleRate) * 1_000_000),
+              data: planeData,
+            });
+
+            if (audioEncoder.state === 'closed') {
+              audioData.close();
+              throw new Error('AudioEncoder bị đóng đột ngột!');
+            }
+            while (audioEncoder.encodeQueueSize >= 10) {
+              await new Promise((r) => setTimeout(r, 5));
+            }
+
+            audioEncoder.encode(audioData);
+            audioData.close();
+
+            audioSampleOffset += chunkSize;
+          }
+        }
+
         if (frame % 15 === 0) {
           const pct = Math.round((frame / totalFrames) * 90);
           setExportProgress(pct);
@@ -221,78 +292,6 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         return;
       }
 
-      // ── Step 5b: Encode audio track in fixed-size 1024-sample blocks (Standard AAC) ──
-      if (audioEncoder && audioBuffer) {
-        setExportPhase('⏺ Đang ghép âm thanh...');
-        setExportDesc('Nén và chèn âm thanh vào video.');
-        setExportProgress(90);
-
-        const audioStartOffset = Math.floor(trimStart * sampleRate);
-        const audioEndOffset = Math.floor(trimEnd * sampleRate);
-        const totalAudioSamples = audioEndOffset - audioStartOffset;
-        const aacFrameSize = 1024;
-
-        let sampleOffset = 0;
-        while (sampleOffset < totalAudioSamples) {
-          if (cancelRef.current) break;
-
-          const remaining = totalAudioSamples - sampleOffset;
-          const chunkSize = Math.min(aacFrameSize, remaining);
-          const currentSampleIndex = audioStartOffset + sampleOffset;
-
-          const planeData = new Float32Array(chunkSize * numChannels);
-          for (let ch = 0; ch < numChannels; ch++) {
-            const src = audioBuffer.getChannelData(ch);
-            const planeOffset = ch * chunkSize;
-            for (let s = 0; s < chunkSize; s++) {
-              let sample = src[currentSampleIndex + s] ?? 0;
-
-              // Apply volume
-              sample *= volumeFactor;
-
-              // Fade in
-              const elapsed = (currentSampleIndex + s) / sampleRate - trimStart;
-              if (fadeIn > 0 && elapsed < fadeIn) {
-                sample *= Math.max(0, elapsed / fadeIn);
-              }
-              // Fade out
-              if (fadeOut > 0 && elapsed > totalDuration - fadeOut) {
-                sample *= Math.max(0, (totalDuration - elapsed) / fadeOut);
-              }
-
-              planeData[planeOffset + s] = sample;
-            }
-          }
-
-          const audioData = new AudioData({
-            format: 'f32-planar',
-            sampleRate,
-            numberOfFrames: chunkSize,
-            numberOfChannels: numChannels,
-            timestamp: Math.round((sampleOffset / sampleRate) * 1_000_000),
-            data: planeData,
-          });
-
-          if (audioEncoder.state === 'closed') {
-            audioData.close();
-            throw new Error('AudioEncoder bị đóng đột ngột!');
-          }
-          while (audioEncoder.encodeQueueSize >= 10) {
-            await new Promise((r) => setTimeout(r, 5));
-          }
-
-          audioEncoder.encode(audioData);
-          audioData.close();
-
-          sampleOffset += chunkSize;
-        }
-      }
-
-      if (cancelRef.current) {
-        setIsExporting(false);
-        setShowModal(false);
-        return;
-      }
 
       // ── Step 6: Flush & finalise ─────────────────────────────────────────
       setExportPhase('✅ Đang hoàn thiện file MP4...');
