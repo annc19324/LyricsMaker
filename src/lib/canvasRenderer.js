@@ -287,11 +287,26 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
   const fontSize = visuals.lyricFontSize;
   const lineSpacingMult = visuals.lineSpacing !== undefined ? visuals.lineSpacing : 1.5;
   const lineSpacing = fontSize * lineSpacingMult;
+  const subLineSpacingMult = visuals.subLineSpacing !== undefined ? visuals.subLineSpacing : 1.2;
+  const subLineSpacing = fontSize * subLineSpacingMult;
+
+  // Precompute block positions to account for subLineSpacing
+  const blockY = new Array(lyrics.length).fill(0);
+  const subLinesArray = new Array(lyrics.length);
+  for (let i = 0; i < lyrics.length; i++) {
+    subLinesArray[i] = lyrics[i].text.replace(/\r/g, '').split('\n');
+    if (i > 0) {
+      const prevHalf = (subLinesArray[i - 1].length - 1) / 2 * subLineSpacing;
+      const currHalf = (subLinesArray[i].length - 1) / 2 * subLineSpacing;
+      blockY[i] = blockY[i - 1] + prevHalf + currHalf + lineSpacing;
+    }
+  }
+
   const linesAbove = visuals.linesAbove;
   const linesBelow = visuals.linesBelow === 'auto' ? 1 : visuals.linesBelow;
 
   // Smooth frame-rate-independent scroll transition (stateless)
-  const targetScrollY = activeIndex * lineSpacing;
+  const targetScrollY = blockY[activeIndex];
   const transitionEnabled = visuals.transitionEnabled !== false;
   let currentScrollY = targetScrollY;
 
@@ -308,10 +323,10 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
         if (elapsed >= 0) {
           const progress = elapsed / duration;
           const ease = progress * progress * (3 - 2 * progress); // smoothstep
-          const prevScrollY = (activeIndex - 1) * lineSpacing;
+          const prevScrollY = blockY[activeIndex - 1];
           currentScrollY = prevScrollY + (targetScrollY - prevScrollY) * ease;
         } else {
-          currentScrollY = (activeIndex - 1) * lineSpacing;
+          currentScrollY = blockY[activeIndex - 1];
         }
       }
     }
@@ -337,7 +352,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
 
   for (let i = startIdx; i <= endIdx; i++) {
     const isActive = i === activeIndex;
-    const yPos = lyricY + i * lineSpacing - currentScrollY;
+    const yPos = lyricY + blockY[i] - currentScrollY;
     const scale = isActive ? (visuals.lyricZoom || 1.1) : 1.0;
 
     let lineOpacity = 1.0;
@@ -375,9 +390,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     else if (visuals.lyricAlign === 'left') { ctx.textAlign = 'left'; textX = lyricX - (visuals.frameWidth ? visuals.frameWidth / 2.2 : 200); }
     else if (visuals.lyricAlign === 'right') { ctx.textAlign = 'right'; textX = lyricX + (visuals.frameWidth ? visuals.frameWidth / 2.2 : 200); }
 
-    const subLines = lyrics[i].text.replace(/\r/g, '').split('\n');
-    const subLineSpacingMult = visuals.subLineSpacing !== undefined ? visuals.subLineSpacing : 1.2;
-    const subLineSpacing = fontSize * subLineSpacingMult;
+    const subLines = subLinesArray[i];
     const karaokeSpeedMult = visuals.karaokeSpeed !== undefined ? visuals.karaokeSpeed : 1.0;
     const karaokeEnabled = visuals.karaokeEnabled !== false && karaokeSpeedMult > 0;
     const highlightScale = visuals.highlightFontScale !== undefined ? visuals.highlightFontScale : 1.0;

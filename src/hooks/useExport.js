@@ -160,9 +160,20 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
 
       let audioSampleOffset = 0;
       const aacFrameSize = 1024;
-      const audioStartOffset = audioBuffer ? Math.floor(trimStart * sampleRate) : 0;
-      const audioEndOffset = audioBuffer ? Math.floor(trimEnd * sampleRate) : 0;
-      const totalAudioSamples = audioEndOffset - audioStartOffset;
+      
+      // Calculate audio sync offset if audioBuffer is shorter than the actual media duration.
+      // This perfectly compensates for decodeAudioData stripping MP4/WEBM edit-list padding (silence).
+      let syncOffsetSamples = 0;
+      if (audioBuffer && audio.duration) {
+        const diff = audio.duration - audioBuffer.duration;
+        if (diff > 0.05) {
+          syncOffsetSamples = Math.floor(diff * sampleRate);
+          console.log(`[Export] Detected decodeAudioData offset: ${diff.toFixed(3)}s. Applying sync padding.`);
+        }
+      }
+
+      const audioStartOffset = audioBuffer ? Math.floor(trimStart * sampleRate) - syncOffsetSamples : 0;
+      const totalAudioSamples = Math.floor(totalDuration * sampleRate);
 
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelRef.current) break;
@@ -236,13 +247,17 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
               const src = audioBuffer.getChannelData(ch);
               const planeOffset = ch * chunkSize;
               for (let s = 0; s < chunkSize; s++) {
-                let sample = src[currentSampleIndex + s] ?? 0;
+                let sample = 0;
+                const actualIndex = currentSampleIndex + s;
+                if (actualIndex >= 0 && actualIndex < src.length) {
+                  sample = src[actualIndex];
+                }
 
                 // Apply volume
                 sample *= volumeFactor;
 
                 // Fade in/out
-                const elapsed = (currentSampleIndex + s) / sampleRate - trimStart;
+                const elapsed = (audioSampleOffset + s) / sampleRate;
                 if (fadeIn > 0 && elapsed < fadeIn) {
                   sample *= Math.max(0, elapsed / fadeIn);
                 }
