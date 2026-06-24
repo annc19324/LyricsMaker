@@ -59,8 +59,16 @@ export default function TabEffects() {
           value={v?.karaokeSpeed ?? 1.0}
           displayValue={v?.karaokeSpeed === 0 ? 'Tắt' : `${v?.karaokeSpeed ?? 1.0}x`}
           onChange={(val) => sv('karaokeSpeed', val)} />
-        <ToggleRow id="toggle-transition" label="Cuộn lyrics mượt mà"
-          checked={v?.transitionEnabled !== false} onChange={(c) => sv('transitionEnabled', c)} />
+        <div className="form-group">
+          <label>Hiệu ứng chuyển dòng (Khắc phục vỡ nền video)</label>
+          <select 
+            value={v?.transitionEnabled === false ? 'jump' : 'scroll'}
+            onChange={(e) => sv('transitionEnabled', e.target.value === 'scroll')}
+          >
+            <option value="scroll">Cuộn mượt mà (Mặc định)</option>
+            <option value="jump">Chuyển tức thì / Không cuộn (Tránh vỡ nền khi xem trên điện thoại)</option>
+          </select>
+        </div>
         <SliderRow id="slider-transition-speed" label="Tốc độ cuộn lyrics" min={0.02} max={0.5} step={0.01}
           value={v?.transitionSpeed ?? 0.1} displayValue={`${v?.transitionSpeed ?? 0.1}x`}
           onChange={(val) => sv('transitionSpeed', val)} />

@@ -115,7 +115,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         codec: 'avc1.4d002a',
         width: exportWidth,
         height: exportHeight,
-        bitrate: 6_000_000,
+        bitrate: 12_000_000,
         framerate: fps,
         hardwareAcceleration: 'prefer-hardware',
       };
