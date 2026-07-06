@@ -411,7 +411,12 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
         const numSubLines = subLines.length;
         const subDuration = (tEnd - tStart) / numSubLines;
         const subStart = tStart + subIdx * subDuration;
-        let progress = subDuration > 0 ? ((curTime - subStart) / subDuration) * karaokeSpeedMult : 0;
+        
+        const karaokeDelay = visuals.karaokeDelay !== undefined ? visuals.karaokeDelay : 0.5;
+        let actualFillDuration = subDuration - karaokeDelay;
+        actualFillDuration = Math.max(0.1, actualFillDuration); // Ensure it has some time to fill
+        
+        let progress = actualFillDuration > 0 ? ((curTime - subStart) / actualFillDuration) * karaokeSpeedMult : 0;
         progress = Math.max(0, Math.min(1, progress));
 
         ctx.save();

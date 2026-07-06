@@ -59,6 +59,9 @@ export default function TabEffects() {
           value={v?.karaokeSpeed ?? 1.0}
           displayValue={v?.karaokeSpeed === 0 ? 'Tắt' : `${v?.karaokeSpeed ?? 1.0}x`}
           onChange={(val) => sv('karaokeSpeed', val)} />
+        <SliderRow id="slider-karaoke-delay" label="Độ trễ khi xuống dòng Karaoke" min={0} max={2} step={0.1}
+          value={v?.karaokeDelay ?? 0.5} displayValue={`${v?.karaokeDelay ?? 0.5}s`}
+          onChange={(val) => sv('karaokeDelay', val)} />
         <div className="form-group">
           <label>Hiệu ứng chuyển dòng (Khắc phục vỡ nền video)</label>
           <select 
