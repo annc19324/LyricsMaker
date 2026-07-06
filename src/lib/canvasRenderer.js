@@ -409,14 +409,19 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
           : audioDuration;
 
         const numSubLines = subLines.length;
-        const subDuration = (tEnd - tStart) / numSubLines;
-        const subStart = tStart + subIdx * subDuration;
+        const totalDuration = tEnd - tStart;
         
-        const karaokeDelay = visuals.karaokeDelay !== undefined ? visuals.karaokeDelay : 0.5;
-        let actualFillDuration = subDuration - karaokeDelay;
-        actualFillDuration = Math.max(0.1, actualFillDuration); // Ensure it has some time to fill
+        const requestedDelay = visuals.karaokeDelay !== undefined ? visuals.karaokeDelay : 0.5;
+        const maxDelay = Math.max(0, (totalDuration - 0.1) / numSubLines);
+        const actualDelay = Math.min(requestedDelay, maxDelay);
         
-        let progress = actualFillDuration > 0 ? ((curTime - subStart) / actualFillDuration) * karaokeSpeedMult : 0;
+        const remainingTime = totalDuration - (numSubLines * actualDelay);
+        const baseSubDuration = Math.max(0.01, remainingTime / numSubLines);
+        
+        const actualFillDuration = baseSubDuration / (karaokeSpeedMult || 1);
+        const subStart = tStart + subIdx * (actualFillDuration + actualDelay);
+        
+        let progress = actualFillDuration > 0 ? (curTime - subStart) / actualFillDuration : 0;
         progress = Math.max(0, Math.min(1, progress));
 
         ctx.save();
