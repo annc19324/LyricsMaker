@@ -19,6 +19,26 @@ export function initFogParticles() {
   }
 }
 
+// ── Firefly particles ─────────────────────────────────────────────────────────
+const fireflyParticles = [];
+export function initFireflyParticles() {
+  fireflyParticles.length = 0;
+  // Khởi tạo tối đa 200 đom đóm
+  for (let i = 0; i < 200; i++) {
+    fireflyParticles.push({
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      r: Math.random() * 2 + 1,
+      baseDx: (Math.random() - 0.5) * 0.2,
+      baseDy: (Math.random() - 0.5) * 0.2,
+      phase: Math.random() * Math.PI * 2,
+      blinkSpeed: Math.random() * 2 + 1,
+      targetX: Math.random() * 100,
+      targetY: Math.random() * 100,
+    });
+  }
+}
+
 // ── Scroll LERP state (Now stateless, resetScrollY kept for API compatibility) ──
 export function resetScrollY() {}
 
@@ -82,6 +102,11 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
   // 5. Fog
   if (visuals.fogIntensity > 0) {
     drawFog(ctx, w, h, visuals.fogIntensity / 100, visuals);
+  }
+
+  // 5.5 Fireflies
+  if (visuals.fireflyEnabled) {
+    drawFireflies(ctx, w, h, curTime, visuals);
   }
 
   // 6. Watermark
@@ -263,6 +288,64 @@ function drawFog(ctx, w, h, intensity, visuals) {
     ctx.beginPath();
     ctx.arc(px, py, p.r, 0, Math.PI * 2);
     ctx.fillStyle = grad;
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
+// ── Fireflies ─────────────────────────────────────────────────────────────────
+function drawFireflies(ctx, w, h, curTime, visuals) {
+  const count = visuals.fireflyCount !== undefined ? visuals.fireflyCount : 50;
+  const speed = visuals.fireflySpeed !== undefined ? visuals.fireflySpeed : 1.0;
+  const color = visuals.fireflyColor || '#f59e0b';
+  const direction = visuals.fireflyDirection || 'random'; // random, border, center, up
+
+  ctx.save();
+  const activeParticles = fireflyParticles.slice(0, count);
+  
+  activeParticles.forEach((p) => {
+    // Movement logic
+    if (direction === 'random') {
+      p.x += p.baseDx * speed;
+      p.y += p.baseDy * speed;
+      // Wrap around
+      if (p.x > 105) p.x = -5; if (p.x < -5) p.x = 105;
+      if (p.y > 105) p.y = -5; if (p.y < -5) p.y = 105;
+    } else if (direction === 'up') {
+      p.y -= Math.abs(p.baseDy) * speed * 2;
+      p.x += (Math.sin(curTime * p.blinkSpeed + p.phase) * 0.1) * speed;
+      if (p.y < -5) { p.y = 105; p.x = Math.random() * 100; }
+    } else if (direction === 'center' || direction === 'border') {
+      if (Math.random() < 0.02 * speed) {
+         if (direction === 'center') {
+            p.targetX = 30 + Math.random() * 40; // 30-70%
+            p.targetY = 30 + Math.random() * 40; // 30-70%
+         } else {
+            // border
+            if (Math.random() < 0.5) {
+                p.targetX = Math.random() < 0.5 ? -5 + Math.random() * 20 : 85 + Math.random() * 20;
+                p.targetY = Math.random() * 100;
+            } else {
+                p.targetX = Math.random() * 100;
+                p.targetY = Math.random() < 0.5 ? -5 + Math.random() * 20 : 85 + Math.random() * 20;
+            }
+         }
+      }
+      p.x += (p.targetX - p.x) * 0.01 * speed;
+      p.y += (p.targetY - p.y) * 0.01 * speed;
+      p.x += (Math.random() - 0.5) * 0.2 * speed; // jitter
+      p.y += (Math.random() - 0.5) * 0.2 * speed;
+    }
+
+    const px = p.x * (w / 100);
+    const py = p.y * (h / 100);
+    const opacity = (Math.sin(curTime * p.blinkSpeed + p.phase) + 1) / 2; // 0 to 1
+
+    ctx.beginPath();
+    ctx.arc(px, py, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = hexToRgba(color, opacity);
+    ctx.shadowColor = color;
+    ctx.shadowBlur = p.r * 4 * opacity;
     ctx.fill();
   });
   ctx.restore();

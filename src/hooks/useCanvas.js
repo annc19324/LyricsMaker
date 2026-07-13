@@ -4,7 +4,7 @@
  */
 import { useEffect, useRef, useCallback } from 'react';
 import useAppStore from '../store/useAppStore';
-import { renderFrame, initFogParticles, resetScrollY } from '../lib/canvasRenderer';
+import { renderFrame, initFogParticles, initFireflyParticles, resetScrollY } from '../lib/canvasRenderer';
 
 export function useCanvas(canvasRef, audioRef, mediaRefs) {
   const rafRef = useRef(null);
@@ -16,8 +16,11 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
   const songArtist = useAppStore((s) => s.songArtist);
   const songChannel = useAppStore((s) => s.songChannel);
 
-  // Init fog particles once
-  useEffect(() => { initFogParticles(); }, []);
+  // Init particles once
+  useEffect(() => { 
+    initFogParticles();
+    initFireflyParticles();
+  }, []);
 
   // Canvas resolution + preview box size
   const updateCanvasSize = useCallback(() => {

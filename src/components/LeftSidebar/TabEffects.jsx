@@ -42,6 +42,31 @@ export default function TabEffects() {
         <SliderRow id="slider-fog-speed" label="Tốc độ sương mù (Fog Speed)" min={0} max={10} step={0.1}
           value={v?.fogSpeed ?? 0.5} displayValue={`${v?.fogSpeed ?? 0.5}x`}
           onChange={(val) => sv('fogSpeed', val)} />
+          
+        <h4 style={{marginTop: '15px', marginBottom: '10px', color: 'var(--color-primary)'}}><i className="fa-solid fa-bug"></i> Đom đóm (Fireflies)</h4>
+        <ToggleRow id="toggle-firefly" label="Bật đom đóm"
+          checked={v?.fireflyEnabled === true} onChange={(c) => sv('fireflyEnabled', c)} />
+        {v?.fireflyEnabled && (
+          <>
+            <div className="form-group">
+              <label>Hướng bay (Kiểu di chuyển)</label>
+              <select value={v?.fireflyDirection || 'random'} onChange={(e) => sv('fireflyDirection', e.target.value)}>
+                <option value="random">Lộn xộn (Bay tự do mọi hướng)</option>
+                <option value="up">Bay lên trên (Như đốm sáng bay lên)</option>
+                <option value="center">Tập trung (Bay quanh vị trí trung tâm)</option>
+                <option value="border">Quanh viền (Chạy dọc theo các viền)</option>
+              </select>
+            </div>
+            <ColorPickerRow id="color-firefly" label="Màu đom đóm"
+              value={v?.fireflyColor ?? '#f59e0b'} onChange={(c) => sv('fireflyColor', c)} />
+            <SliderRow id="slider-firefly-count" label="Số lượng" min={10} max={200} step={10}
+              value={v?.fireflyCount ?? 50} displayValue={`${v?.fireflyCount ?? 50}`}
+              onChange={(val) => sv('fireflyCount', val)} />
+            <SliderRow id="slider-firefly-speed" label="Tốc độ di chuyển" min={0.1} max={5} step={0.1}
+              value={v?.fireflySpeed ?? 1.0} displayValue={`${v?.fireflySpeed ?? 1.0}x`}
+              onChange={(val) => sv('fireflySpeed', val)} />
+          </>
+        )}
       </div>
 
       {/* Lyrics Effects */}
