@@ -5,13 +5,11 @@
 import { useState, useEffect } from 'react';
 import useAppStore from '../../store/useAppStore';
 import TabMedia from './TabMedia';
-import TabPip from './TabPip';
 import TabLayout from './TabLayout';
 import TabEffects from './TabEffects';
 
 const TABS = [
   { id: 'tab-media', icon: 'fa-photo-film', label: 'Tệp & Nền' },
-  { id: 'tab-pip', icon: 'fa-clone', label: 'PIP (Ảnh)' },
   { id: 'tab-layout', icon: 'fa-sliders', label: 'Bố Cục' },
   { id: 'tab-effects', icon: 'fa-wand-magic-sparkles', label: 'Hiệu Ứng' },
 ];
@@ -40,11 +38,6 @@ export default function LeftSidebar({ mediaRefs, loadAudioFile }) {
         {activeTab === 'tab-media' && (
           <div className="tab-panel active" id="tab-media">
             <TabMedia mediaRefs={mediaRefs} loadAudioFile={loadAudioFile} />
-          </div>
-        )}
-        {activeTab === 'tab-pip' && (
-          <div className="tab-panel active" id="tab-pip">
-            <TabPip mediaRefs={mediaRefs} />
           </div>
         )}
         {activeTab === 'tab-layout' && (
