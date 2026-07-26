@@ -16,6 +16,8 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
   const updateTimingAt = useAppStore((s) => s.updateTimingAt);
   const setMarkKeys = useAppStore((s) => s.setMarkKeys);
   const updateLyrics = useAppStore((s) => s.updateLyrics);
+  const syncMode = useAppStore((s) => s.syncMode);
+  const karaokeCursorState = useAppStore((s) => s.karaokeCursorState);
   const set = useAppStore((s) => s.set);
 
   // Scroll active row into view
@@ -33,9 +35,10 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
   };
 
   const handleClearTimings = () => {
-    const cleared = lyrics.map((l) => ({ ...l, time: 0 }));
+    const cleared = lyrics.map((l) => ({ ...l, time: 0, endTime: null }));
     updateLyrics(cleared);
     setSyncCursor(0);
+    set({ karaokeCursorState: 'start' });
 
     if (audioRef && audioRef.current) {
       const state = useAppStore.getState();
@@ -50,10 +53,15 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
     }
   };
 
-  const handleTimeChange = (idx, raw) => {
+  const handleTimeChange = (idx, raw, isEnd = false) => {
     const val = raw.trim().replace(',', '.');
     const time = val === '' || isNaN(parseFloat(val)) ? 0 : parseFloat(val);
-    updateTimingAt(idx, time);
+    const line = lyrics[idx];
+    if (isEnd) {
+      updateTimingAt(idx, line.time, time);
+    } else {
+      updateTimingAt(idx, time, line.endTime);
+    }
   };
 
   const handleRowClick = (idx, time) => {
@@ -104,7 +112,18 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
         </div>
         <div className="timing-actions-row">
           <button id="btn-sort-timings" className="btn btn-secondary" onClick={handleSort}>Sắp xếp</button>
-          <button id="btn-clear-timings" className="btn btn-secondary" onClick={handleClearTimings}>Xóa tất cả (0s)</button>
+          <button id="btn-clear-timings" className="btn btn-secondary" onClick={handleClearTimings}>Xóa tất cả</button>
+        </div>
+        
+        <div className="timing-actions-row mt-2">
+          <button 
+            className={`btn btn-secondary ${syncMode === 'karaoke' ? 'active-mode' : ''}`}
+            onClick={() => set({ syncMode: syncMode === 'karaoke' ? 'basic' : 'karaoke', karaokeCursorState: 'start' })}
+            style={{ width: '100%', background: syncMode === 'karaoke' ? 'var(--color-primary)' : '', color: syncMode === 'karaoke' ? '#fff' : '' }}
+          >
+            <i className={`fa-solid ${syncMode === 'karaoke' ? 'fa-microphone-lines' : 'fa-list-ul'}`}></i> 
+            {syncMode === 'karaoke' ? ' Chế độ Karaoke (Đầu - Cuối)' : ' Chế độ Cơ bản (1 lần bấm)'}
+          </button>
         </div>
 
         {/* Hotkey config */}
@@ -131,19 +150,44 @@ export default function TabTimingEditor({ audioRef, initAudioContext }) {
               className={`timing-row-new${idx === syncCursorIndex ? ' active' : ''}`}
               data-index={idx}
             >
-              <span className="timing-row-index">{idx + 1}</span>
+              <span className="timing-row-index">
+                {idx + 1}
+                {syncMode === 'karaoke' && idx === syncCursorIndex && (
+                  <span style={{ display: 'block', fontSize: '9px', color: 'var(--color-primary)', marginTop: '2px' }}>
+                    {karaokeCursorState === 'start' ? 'BẮT ĐẦU' : 'KẾT THÚC'}
+                  </span>
+                )}
+              </span>
               <span className="timing-row-text" title="Click để chọn làm câu hát hiện tại"
                 onClick={() => handleRowClick(idx, line.time)}>
                 {line.text}
               </span>
-              <input
-                type="text"
-                className="timing-row-input"
-                defaultValue={line.time !== null && line.time !== undefined ? line.time === 0 ? '0' : line.time.toFixed(5) : '0'}
-                key={`${idx}-${line.time}`}
-                onBlur={(e) => handleTimeChange(idx, e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-              />
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <input
+                  type="text"
+                  className="timing-row-input"
+                  title="Thời gian bắt đầu (giây)"
+                  placeholder="Bắt đầu"
+                  defaultValue={line.time !== null && line.time !== undefined ? line.time === 0 ? '0' : line.time.toFixed(5) : '0'}
+                  key={`start-${idx}-${line.time}`}
+                  onBlur={(e) => handleTimeChange(idx, e.target.value, false)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                />
+                
+                {syncMode === 'karaoke' && (
+                  <input
+                    type="text"
+                    className="timing-row-input"
+                    title="Thời gian kết thúc (giây)"
+                    placeholder="Kết thúc"
+                    defaultValue={line.endTime !== null && line.endTime !== undefined ? line.endTime === 0 ? '0' : line.endTime.toFixed(5) : ''}
+                    key={`end-${idx}-${line.endTime}`}
+                    onBlur={(e) => handleTimeChange(idx, e.target.value, true)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                  />
+                )}
+              </div>
             </div>
           ))}
         </div>

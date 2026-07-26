@@ -549,9 +549,11 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
         const textWidth = ctx.measureText(subText).width;
         const tStart = lyrics[i].time;
-        const tEnd = (i < lyrics.length - 1 && lyrics[i + 1].time !== null)
-          ? lyrics[i + 1].time
-          : audioDuration;
+        const tEnd = (lyrics[i].endTime !== undefined && lyrics[i].endTime !== null && lyrics[i].endTime > tStart)
+          ? lyrics[i].endTime
+          : ((i < lyrics.length - 1 && lyrics[i + 1].time !== null)
+            ? lyrics[i + 1].time
+            : audioDuration);
 
         const numSubLines = subLines.length;
         const totalDuration = tEnd - tStart;

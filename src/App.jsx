@@ -45,6 +45,7 @@ export default function App() {
   const resetToDefaults = useAppStore((s) => s.resetToDefaults);
   const updateLyrics = useAppStore((s) => s.updateLyrics);
   const setSyncCursor = useAppStore((s) => s.setSyncCursor);
+  const set = useAppStore((s) => s.set);
 
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const {
@@ -175,15 +176,33 @@ export default function App() {
     initAudioContext();
     const audio = audioRef.current;
     if (!audio || lyrics.length === 0) return;
-    const offset = (useAppStore.getState().previewOffset || 0) / 1000;
+    
+    const st = useAppStore.getState();
+    const offset = (st.previewOffset || 0) / 1000;
     const cur = audio.currentTime + offset;
-    const idx = useAppStore.getState().syncCursorIndex;
-    const updated = [...useAppStore.getState().lyrics];
-    updated[idx] = { ...updated[idx], time: cur };
-    updateLyrics(updated);
-    if (idx < updated.length - 1) setSyncCursor(idx + 1);
-    showToast(`✓ Đánh dấu tại ${cur.toFixed(2)}s`, 'success', 1500);
-  }, [initAudioContext, audioRef, lyrics.length, updateLyrics, setSyncCursor]);
+    const idx = st.syncCursorIndex;
+    const updated = [...st.lyrics];
+    
+    if (st.syncMode === 'karaoke') {
+      if (st.karaokeCursorState === 'start') {
+        updated[idx] = { ...updated[idx], time: cur, endTime: null };
+        updateLyrics(updated);
+        set({ karaokeCursorState: 'end' });
+        showToast(`✓ Bắt đầu dòng ${idx + 1} tại ${cur.toFixed(2)}s`, 'success', 1000);
+      } else {
+        updated[idx] = { ...updated[idx], endTime: cur };
+        updateLyrics(updated);
+        set({ karaokeCursorState: 'start' });
+        if (idx < updated.length - 1) setSyncCursor(idx + 1);
+        showToast(`✓ Kết thúc dòng ${idx + 1} tại ${cur.toFixed(2)}s`, 'success', 1000);
+      }
+    } else {
+      updated[idx] = { ...updated[idx], time: cur };
+      updateLyrics(updated);
+      if (idx < updated.length - 1) setSyncCursor(idx + 1);
+      showToast(`✓ Đánh dấu tại ${cur.toFixed(2)}s`, 'success', 1500);
+    }
+  }, [initAudioContext, audioRef, lyrics.length, updateLyrics, setSyncCursor, set]);
 
   // ── Global keyboard handler ───────────────────────────────────────────────
   useEffect(() => {

@@ -21,16 +21,22 @@ export function parseLyricsText(text) {
  * @param {Array<{text,time}>} prevLyrics - previous lyrics array (for partial fallback)
  * @returns {Array<{text: string, time: number|null}>}
  */
-export function buildLyricsFromRaw(rawText, timings = [], prevLyrics = []) {
+export function buildLyricsFromRaw(rawText, timings = [], endTimings = [], prevLyrics = []) {
   const blocks = parseLyricsText(rawText);
   return blocks.map((block, idx) => {
     let t = null;
+    let et = null;
     if (timings[idx] !== undefined) {
       t = timings[idx];
     } else if (prevLyrics[idx]) {
       t = prevLyrics[idx].time;
     }
-    return { text: block, time: t };
+    if (endTimings[idx] !== undefined) {
+      et = endTimings[idx];
+    } else if (prevLyrics[idx]) {
+      et = prevLyrics[idx].endTime;
+    }
+    return { text: block, time: t, endTime: et };
   });
 }
 

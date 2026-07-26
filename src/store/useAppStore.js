@@ -25,6 +25,9 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   fadeOut: 2,
   volume: 80,
   timings: [0, 6.0, 12.0, 18.0, 24.0, 30.0, 36.0, 42.0],
+  endTimings: [],
+  syncMode: 'basic', // 'basic' | 'karaoke'
+  karaokeCursorState: 'start', // 'start' | 'end'
   activeRatio: '16:9',
   markKeys: ['Enter', 'Space'],
   previewZoom: 100,
@@ -112,9 +115,9 @@ function persistGlobal(state) {
   const { visuals, ...rest } = state; // eslint-disable-line no-unused-vars
   const keys = [
     'songTitle','songArtist','songChannel','rawLyrics','audioStart','audioEnd',
-    'fadeIn','fadeOut','volume','activeRatio','previewZoom','timings',
+    'fadeIn','fadeOut','volume','activeRatio','previewZoom','timings','endTimings',
     'highlightRules','markKeys','activeLeftTab','activeRightTab',
-    'previewOffset', 'exportOffset',
+    'previewOffset', 'exportOffset', 'syncMode', 'karaokeCursorState',
   ];
   const payload = {};
   keys.forEach((k) => { payload[k] = rest[k]; });
@@ -169,20 +172,26 @@ const useAppStore = create((set, get) => ({
 
   updateLyrics(lyrics) {
     const timings = lyrics.map((l) => l.time);
-    set({ lyrics, timings });
-    persistGlobal({ ...get(), timings });
+    const endTimings = lyrics.map((l) => l.endTime);
+    set({ lyrics, timings, endTimings });
+    persistGlobal({ ...get(), timings, endTimings });
   },
 
   setSyncCursor(index) {
     set({ syncCursorIndex: index });
   },
 
-  updateTimingAt(index, time) {
+  updateTimingAt(index, time, endTime) {
     const lyrics = [...get().lyrics];
-    lyrics[index] = { ...lyrics[index], time };
+    if (endTime !== undefined) {
+      lyrics[index] = { ...lyrics[index], time, endTime };
+    } else {
+      lyrics[index] = { ...lyrics[index], time };
+    }
     const timings = lyrics.map((l) => l.time);
-    set({ lyrics, timings });
-    persistGlobal({ ...get(), timings });
+    const endTimings = lyrics.map((l) => l.endTime);
+    set({ lyrics, timings, endTimings });
+    persistGlobal({ ...get(), timings, endTimings });
   },
 
   setHighlightRules(rules) {

@@ -9,6 +9,7 @@ import { buildLyricsFromRaw, findFirstUnsyncedIndex } from '../../lib/lyricsPars
 export default function TabLyricsInput() {
   const rawLyrics = useAppStore((s) => s.rawLyrics);
   const timings = useAppStore((s) => s.timings);
+  const endTimings = useAppStore((s) => s.endTimings);
   const lyrics = useAppStore((s) => s.lyrics);
   const set = useAppStore((s) => s.set);
   const updateLyrics = useAppStore((s) => s.updateLyrics);
@@ -16,7 +17,7 @@ export default function TabLyricsInput() {
 
   // Auto-parse on rawLyrics change so it syncs immediately without clicking a button
   useEffect(() => {
-    const newLyrics = buildLyricsFromRaw(rawLyrics, timings, lyrics);
+    const newLyrics = buildLyricsFromRaw(rawLyrics, timings, endTimings, lyrics);
     updateLyrics(newLyrics);
     setSyncCursor(findFirstUnsyncedIndex(newLyrics));
   }, [rawLyrics]); // eslint-disable-line react-hooks/exhaustive-deps
