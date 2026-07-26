@@ -114,6 +114,7 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
             mainImage: mediaRefs.mainImage.current,
             mainVideo: mediaRefs.mainVideo.current,
             mainMediaType: mediaRefs.mainMediaType.current,
+            pipImage: mediaRefs.pipImage.current,
           },
           state.highlightRules,
           getAudioDuration(),

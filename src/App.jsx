@@ -35,6 +35,7 @@ export default function App() {
     mainImage: useRef(new Image()),
     mainVideo: useRef(Object.assign(document.createElement('video'), { muted: true, loop: true, playsInline: true })),
     mainMediaType: useRef('image'),
+    pipImage: useRef(new Image()),
   };
 
   // ── Store ──────────────────────────────────────────────────────────────────
@@ -95,6 +96,9 @@ export default function App() {
           v.src = URL.createObjectURL(mainVid); v.load(); v.play().catch(() => {});
           mediaRefs.mainMediaType.current = 'video';
         }
+
+        const pipImg = await loadFileFromIDB('pip_image');
+        if (pipImg) { mediaRefs.pipImage.current.src = URL.createObjectURL(pipImg); }
       } catch (e) {
         console.warn('IDB restore failed:', e);
       }

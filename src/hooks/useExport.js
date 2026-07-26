@@ -149,6 +149,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         mainImage: mediaRefs.mainImage.current,
         mainVideo: mediaRefs.mainVideo.current,
         mainMediaType: mediaRefs.mainMediaType.current,
+        pipImage: mediaRefs.pipImage.current,
       };
 
       const volumeFactor = parseFloat(state.volume) / 100;

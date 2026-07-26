@@ -109,6 +109,11 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
     drawFireflies(ctx, w, h, curTime, visuals);
   }
 
+  // 5.8 PIP
+  if (visuals.pipEnabled && media.pipImage?.src) {
+    drawPip(ctx, w, h, curTime, visuals, media.pipImage);
+  }
+
   // 6. Watermark
   drawWatermark(ctx, w, h, visuals, mainOffset);
 
@@ -348,6 +353,63 @@ function drawFireflies(ctx, w, h, curTime, visuals) {
     ctx.shadowBlur = p.r * 4 * opacity;
     ctx.fill();
   });
+  ctx.restore();
+}
+
+// ── PIP ───────────────────────────────────────────────────────────────────────
+function drawPip(ctx, w, h, curTime, visuals, pipImage) {
+  const { pipStartTime, pipEndTime, pipFadeIn, pipFadeOut, pipX, pipY, pipSize, pipShape, pipBorderRadius } = visuals;
+  
+  if (pipStartTime > 0 && curTime < pipStartTime) return;
+  if (pipEndTime > 0 && curTime > pipEndTime) return;
+
+  let opacity = 1.0;
+  if (pipFadeIn > 0 && curTime < pipStartTime + pipFadeIn) {
+    opacity = (curTime - pipStartTime) / pipFadeIn;
+  } else if (pipEndTime > 0 && pipFadeOut > 0 && curTime > pipEndTime - pipFadeOut) {
+    opacity = (pipEndTime - curTime) / pipFadeOut;
+  }
+  opacity = Math.max(0, Math.min(1, opacity));
+  
+  if (opacity <= 0) return;
+
+  const xPixel = (pipX / 100) * w;
+  const yPixel = (pipY / 100) * h;
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  
+  const imgW = pipImage.naturalWidth || pipSize;
+  const imgH = pipImage.naturalHeight || pipSize;
+  const scale = pipSize / Math.max(imgW, imgH);
+  const dw = imgW * scale;
+  const dh = imgH * scale;
+
+  ctx.translate(xPixel, yPixel);
+  ctx.beginPath();
+
+  if (pipShape === 'circle') {
+    ctx.arc(0, 0, Math.min(dw, dh) / 2, 0, Math.PI * 2);
+  } else if (pipShape === 'square') {
+    const s = Math.min(dw, dh);
+    drawRoundRect(ctx, -s / 2, -s / 2, s, s, pipBorderRadius || 0);
+  } else {
+    drawRoundRect(ctx, -dw / 2, -dh / 2, dw, dh, pipBorderRadius || 0);
+  }
+  ctx.clip();
+
+  if (pipShape === 'circle' || pipShape === 'square') {
+    const s = Math.min(dw, dh);
+    drawCover(ctx, pipImage, -s / 2, -s / 2, s, s);
+  } else {
+    ctx.drawImage(pipImage, -dw / 2, -dh / 2, dw, dh);
+  }
+  
+  // Optional border for PIP
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
   ctx.restore();
 }
 
