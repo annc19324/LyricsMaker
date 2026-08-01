@@ -56,7 +56,7 @@ export function resetScrollY() {}
  * @param {Array}  highlightRules - [{ pattern, close, color }]
  * @param {number} audioDuration  - total audio duration in seconds
  */
-export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, highlightRules = [], audioDuration = 60) {
+export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, highlightRules = [], audioDuration = 60, pips = []) {
   let w = canvas.width;
   let h = canvas.height;
 
@@ -109,9 +109,13 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
     drawFireflies(ctx, w, h, curTime, visuals);
   }
 
-  // 5.8 PIP
-  if (visuals.pipEnabled && media.pipImage?.src) {
-    drawPip(ctx, w, h, curTime, visuals, media.pipImage);
+  // 5.8 PIPs
+  if (pips && Array.isArray(pips)) {
+    pips.forEach((pip) => {
+      if (pip.enabled && media.pipImages?.[`pip_image_${pip.id}`]?.src) {
+        drawPip(ctx, w, h, curTime, pip, media.pipImages[`pip_image_${pip.id}`]);
+      }
+    });
   }
 
   // 6. Watermark

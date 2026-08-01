@@ -10,7 +10,7 @@ import { useAudio } from './hooks/useAudio';
 import { useCanvas } from './hooks/useCanvas';
 import { useExport } from './hooks/useExport';
 import { buildLyricsFromRaw, findFirstUnsyncedIndex } from './lib/lyricsParser';
-import { loadFileFromIDB } from './lib/idb';
+import { loadFileFromIDB, getAllKeysFromIDB } from './lib/idb';
 import { resetScrollY } from './lib/canvasRenderer';
 
 import Header from './components/Header';
@@ -35,7 +35,7 @@ export default function App() {
     mainImage: useRef(new Image()),
     mainVideo: useRef(Object.assign(document.createElement('video'), { muted: true, loop: true, playsInline: true })),
     mainMediaType: useRef('image'),
-    pipImage: useRef(new Image()),
+    pipImages: useRef({}),
   };
 
   // ── Store ──────────────────────────────────────────────────────────────────
@@ -98,8 +98,16 @@ export default function App() {
           mediaRefs.mainMediaType.current = 'video';
         }
 
-        const pipImg = await loadFileFromIDB('pip_image');
-        if (pipImg) { mediaRefs.pipImage.current.src = URL.createObjectURL(pipImg); }
+        const keys = await getAllKeysFromIDB();
+        const pipKeys = keys.filter(k => k.startsWith('pip_image_'));
+        for (const k of pipKeys) {
+          const pipImg = await loadFileFromIDB(k);
+          if (pipImg) {
+            const img = new Image();
+            img.src = URL.createObjectURL(pipImg);
+            mediaRefs.pipImages.current[k] = img;
+          }
+        }
       } catch (e) {
         console.warn('IDB restore failed:', e);
       }

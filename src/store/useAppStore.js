@@ -31,6 +31,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
   activeRatio: '16:9',
   markKeys: ['Enter', 'Space'],
   previewZoom: 100,
+  pips: [], // Array of PIP objects
   visuals: {
     '16:9': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
@@ -117,7 +118,7 @@ function persistGlobal(state) {
     'songTitle','songArtist','songChannel','rawLyrics','audioStart','audioEnd',
     'fadeIn','fadeOut','volume','activeRatio','previewZoom','timings','endTimings',
     'highlightRules','markKeys','activeLeftTab','activeRightTab',
-    'previewOffset', 'exportOffset', 'syncMode', 'karaokeCursorState',
+    'previewOffset', 'exportOffset', 'syncMode', 'karaokeCursorState', 'pips'
   ];
   const payload = {};
   keys.forEach((k) => { payload[k] = rest[k]; });
@@ -211,6 +212,24 @@ const useAppStore = create((set, get) => ({
 
   getActiveVisuals() {
     return get().visuals[get().activeRatio];
+  },
+
+  addPip(pip) {
+    const pips = [...get().pips, pip];
+    set({ pips });
+    persistGlobal({ ...get(), pips });
+  },
+
+  updatePip(id, partial) {
+    const pips = get().pips.map((p) => p.id === id ? { ...p, ...partial } : p);
+    set({ pips });
+    persistGlobal({ ...get(), pips });
+  },
+
+  removePip(id) {
+    const pips = get().pips.filter((p) => p.id !== id);
+    set({ pips });
+    persistGlobal({ ...get(), pips });
   },
 }));
 

@@ -7,7 +7,7 @@ import useAppStore from '../../store/useAppStore';
 import FileUploadZone from '../ui/FileUploadZone';
 import SliderRow from '../ui/SliderRow';
 import ToggleRow from '../ui/ToggleRow';
-import { saveFileToIDB, loadFileFromIDB, removeFileFromIDB } from '../../lib/idb';
+import { saveFileToIDB, loadFileFromIDB, removeFileFromIDB, getAllKeysFromIDB } from '../../lib/idb';
 
 export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const songTitle = useAppStore((s) => s.songTitle);
@@ -28,9 +28,13 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const [bgVideoInfo, setBgVideoInfo] = useState('Chưa có video nền');
   const [mainImageInfo, setMainImageInfo] = useState('Mặc định: Đĩa Vinyl');
   const [mainVideoInfo, setMainVideoInfo] = useState('Chưa có video chính');
-  const [pipImageInfo, setPipImageInfo] = useState('Chưa có ảnh PIP');
+  const [pipNames, setPipNames] = useState({});
 
   const v = useAppStore((s) => s.visuals[s.activeRatio]);
+  const pips = useAppStore((s) => s.pips);
+  const addPip = useAppStore((s) => s.addPip);
+  const updatePip = useAppStore((s) => s.updatePip);
+  const removePip = useAppStore((s) => s.removePip);
   const setVisual = useAppStore((s) => s.setVisual);
   const sv = (key, val) => setVisual(key, val);
 
@@ -59,8 +63,16 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
           setMainType('video');
         }
 
-        const pipImg = await loadFileFromIDB('pip_image');
-        if (pipImg) setPipImageInfo(pipImg.name);
+        const keys = await getAllKeysFromIDB();
+        const pipKeys = keys.filter(k => k.startsWith('pip_image_'));
+        const newPipNames = {};
+        for (const k of pipKeys) {
+          const pipImg = await loadFileFromIDB(k);
+          if (pipImg) {
+            newPipNames[k.replace('pip_image_', '')] = pipImg.name;
+          }
+        }
+        setPipNames(newPipNames);
       } catch (e) {
         console.warn('TabMedia label restore failed:', e);
       }
@@ -190,23 +202,34 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
     removeFileFromIDB('main_video').catch(() => {});
   };
 
-  const handlePipImage = (file) => {
-    setPipImageInfo(file.name);
+  const handlePipImage = (file, pipId) => {
+    setPipNames((prev) => ({ ...prev, [pipId]: file.name }));
     const url = URL.createObjectURL(file);
-    if (mediaRefs && mediaRefs.pipImage) {
-      mediaRefs.pipImage.current.src = url;
+    if (mediaRefs && mediaRefs.pipImages) {
+      if (!mediaRefs.pipImages.current[`pip_image_${pipId}`]) {
+        mediaRefs.pipImages.current[`pip_image_${pipId}`] = new Image();
+      }
+      mediaRefs.pipImages.current[`pip_image_${pipId}`].src = url;
     }
-    saveFileToIDB('pip_image', file).catch(() => {});
-    sv('pipEnabled', true);
+    saveFileToIDB(`pip_image_${pipId}`, file).catch(() => {});
+    updatePip(pipId, { enabled: true });
   };
 
-  const handleClearPip = () => {
-    setPipImageInfo('Chưa có ảnh PIP');
-    if (mediaRefs && mediaRefs.pipImage) {
-      mediaRefs.pipImage.current.src = '';
+  const handleRemovePip = (pipId) => {
+    removePip(pipId);
+    removeFileFromIDB(`pip_image_${pipId}`).catch(() => {});
+    setPipNames((prev) => { const n = { ...prev }; delete n[pipId]; return n; });
+    if (mediaRefs && mediaRefs.pipImages) {
+      delete mediaRefs.pipImages.current[`pip_image_${pipId}`];
     }
-    removeFileFromIDB('pip_image').catch(() => {});
-    sv('pipEnabled', false);
+  };
+
+  const handleAddPip = () => {
+    const id = Date.now().toString();
+    addPip({
+      id, enabled: false, x: 50, y: 50, size: 200, shape: 'rectangle',
+      borderRadius: 12, startTime: 0, endTime: 0, fadeIn: 0.5, fadeOut: 0.5
+    });
   };
 
   return (
@@ -324,78 +347,94 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
 
       {/* PIP Media */}
       <div className="panel-section">
-        <h3><i className="fa-solid fa-clone"></i> Ảnh Thu Nhỏ (PIP)</h3>
-        
-        <FileUploadZone id="upload-pip-image-zone" accept="image/*" icon="fa-image"
-          label="Chọn Ảnh PIP" fileInfo={pipImageInfo} onFile={handlePipImage} />
-          
-        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handleClearPip}>
-            <i className="fa-solid fa-trash"></i> Xóa ảnh
+        <h3>
+          <i className="fa-solid fa-clone"></i> Ảnh Thu Nhỏ (PIP)
+          <button className="btn btn-primary btn-small" style={{ float: 'right', padding: '2px 8px', fontSize: '12px' }} onClick={handleAddPip}>
+            <i className="fa-solid fa-plus"></i> Thêm PIP
           </button>
-        </div>
+        </h3>
+        
+        {pips.map((pip, index) => (
+          <div key={pip.id} style={{ border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px', marginTop: '15px', position: 'relative' }}>
+            <h4 style={{ margin: '0 0 10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>PIP #{index + 1}</span>
+              <button className="btn btn-small btn-secondary" style={{ color: '#ff4d4f' }} onClick={() => handleRemovePip(pip.id)}>
+                <i className="fa-solid fa-trash"></i>
+              </button>
+            </h4>
 
-        <div style={{ marginTop: '15px' }}>
-          <ToggleRow id="toggle-pip" label="Bật hiển thị PIP"
-            checked={v?.pipEnabled === true} onChange={(c) => sv('pipEnabled', c)} />
-        </div>
-
-        {v?.pipEnabled && (
-          <>
-            <div className="form-grid">
-              <SliderRow id="slider-pip-x" label="Vị trí X" min={0} max={100} step={0.1}
-                value={v?.pipX ?? 80} displayValue={`${v?.pipX ?? 80}%`}
-                onChange={(val) => sv('pipX', val)} />
-              <SliderRow id="slider-pip-y" label="Vị trí Y" min={0} max={100} step={0.1}
-                value={v?.pipY ?? 80} displayValue={`${v?.pipY ?? 80}%`}
-                onChange={(val) => sv('pipY', val)} />
+            <FileUploadZone id={`upload-pip-${pip.id}`} accept="image/*" icon="fa-image"
+              label="Chọn Ảnh PIP" fileInfo={pipNames[pip.id] || 'Chưa có ảnh'} onFile={(file) => handlePipImage(file, pip.id)} />
+            
+            <div style={{ marginTop: '15px' }}>
+              <ToggleRow id={`toggle-pip-${pip.id}`} label="Bật hiển thị PIP"
+                checked={pip.enabled === true} onChange={(c) => updatePip(pip.id, { enabled: c })} />
             </div>
 
-            <SliderRow id="slider-pip-size" label="Kích thước" min={20} max={800} step={5}
-              value={v?.pipSize ?? 200} displayValue={`${v?.pipSize ?? 200}px`}
-              onChange={(val) => sv('pipSize', val)} />
+            {pip.enabled && (
+              <>
+                <div className="form-grid mt-2">
+                  <SliderRow id={`slider-pip-x-${pip.id}`} label="Vị trí X" min={0} max={100} step={0.1}
+                    value={pip.x ?? 80} displayValue={`${pip.x ?? 80}%`}
+                    onChange={(val) => updatePip(pip.id, { x: val })} />
+                  <SliderRow id={`slider-pip-y-${pip.id}`} label="Vị trí Y" min={0} max={100} step={0.1}
+                    value={pip.y ?? 80} displayValue={`${pip.y ?? 80}%`}
+                    onChange={(val) => updatePip(pip.id, { y: val })} />
+                </div>
 
-            <div className="form-group">
-              <label>Hình dáng (Cắt ảnh)</label>
-              <select 
-                value={v?.pipShape || 'rectangle'}
-                onChange={(e) => sv('pipShape', e.target.value)}
-              >
-                <option value="rectangle">Chữ nhật (Mặc định)</option>
-                <option value="square">Hình vuông 1:1</option>
-                <option value="circle">Hình tròn</option>
-              </select>
-            </div>
+                <SliderRow id={`slider-pip-size-${pip.id}`} label="Kích thước" min={20} max={800} step={5}
+                  value={pip.size ?? 200} displayValue={`${pip.size ?? 200}px`}
+                  onChange={(val) => updatePip(pip.id, { size: val })} />
 
-            {v?.pipShape !== 'circle' && (
-              <SliderRow id="slider-pip-radius" label="Độ bo góc" min={0} max={100}
-                value={v?.pipBorderRadius ?? 12} displayValue={`${v?.pipBorderRadius ?? 12}px`}
-                onChange={(val) => sv('pipBorderRadius', val)} />
+                <div className="form-group">
+                  <label>Hình dáng (Cắt ảnh)</label>
+                  <select 
+                    value={pip.shape || 'rectangle'}
+                    onChange={(e) => updatePip(pip.id, { shape: e.target.value })}
+                  >
+                    <option value="rectangle">Chữ nhật (Mặc định)</option>
+                    <option value="square">Hình vuông 1:1</option>
+                    <option value="circle">Hình tròn</option>
+                  </select>
+                </div>
+
+                {pip.shape !== 'circle' && (
+                  <SliderRow id={`slider-pip-radius-${pip.id}`} label="Độ bo góc" min={0} max={100}
+                    value={pip.borderRadius ?? 12} displayValue={`${pip.borderRadius ?? 12}px`}
+                    onChange={(val) => updatePip(pip.id, { borderRadius: val })} />
+                )}
+
+                <h4 style={{marginTop: '15px', color: 'var(--color-primary)', fontSize: '13px'}}>Thời gian hiển thị</h4>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Bắt đầu (s)</label>
+                    <input type="number" step="0.5" value={pip.startTime ?? 0}
+                      onChange={(e) => updatePip(pip.id, { startTime: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div className="form-group">
+                    <label>Kết thúc (s) - 0 là luôn hiện</label>
+                    <input type="number" step="0.5" value={pip.endTime ?? 0}
+                      onChange={(e) => updatePip(pip.id, { endTime: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <SliderRow id={`slider-pip-fadein-${pip.id}`} label="Hiện dần (s)" min={0} max={5} step={0.1}
+                    value={pip.fadeIn ?? 0.5} displayValue={`${pip.fadeIn ?? 0.5}s`}
+                    onChange={(val) => updatePip(pip.id, { fadeIn: val })} />
+                  <SliderRow id={`slider-pip-fadeout-${pip.id}`} label="Mờ dần (s)" min={0} max={5} step={0.1}
+                    value={pip.fadeOut ?? 0.5} displayValue={`${pip.fadeOut ?? 0.5}s`}
+                    onChange={(val) => updatePip(pip.id, { fadeOut: val })} />
+                </div>
+              </>
             )}
+          </div>
+        ))}
 
-            <h4 style={{marginTop: '15px', color: 'var(--color-primary)', fontSize: '13px'}}>Thời gian hiển thị</h4>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Bắt đầu (s)</label>
-                <input type="number" step="0.5" value={v?.pipStartTime ?? 0}
-                  onChange={(e) => sv('pipStartTime', parseFloat(e.target.value) || 0)} />
-              </div>
-              <div className="form-group">
-                <label>Kết thúc (s) - 0 là luôn hiện</label>
-                <input type="number" step="0.5" value={v?.pipEndTime ?? 0}
-                  onChange={(e) => sv('pipEndTime', parseFloat(e.target.value) || 0)} />
-              </div>
-            </div>
-
-            <div className="form-grid">
-              <SliderRow id="slider-pip-fadein" label="Hiện dần (s)" min={0} max={5} step={0.1}
-                value={v?.pipFadeIn ?? 0.5} displayValue={`${v?.pipFadeIn ?? 0.5}s`}
-                onChange={(val) => sv('pipFadeIn', val)} />
-              <SliderRow id="slider-pip-fadeout" label="Mờ dần (s)" min={0} max={5} step={0.1}
-                value={v?.pipFadeOut ?? 0.5} displayValue={`${v?.pipFadeOut ?? 0.5}s`}
-                onChange={(val) => sv('pipFadeOut', val)} />
-            </div>
-          </>
+        {pips.length === 0 && (
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '15px' }}>
+            Chưa có PIP nào. Bấm "Thêm PIP" để tạo.
+          </p>
         )}
       </div>
 

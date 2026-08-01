@@ -149,7 +149,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         mainImage: mediaRefs.mainImage.current,
         mainVideo: mediaRefs.mainVideo.current,
         mainMediaType: mediaRefs.mainMediaType.current,
-        pipImage: mediaRefs.pipImage.current,
+        pipImages: mediaRefs.pipImages.current,
       };
 
       const volumeFactor = parseFloat(state.volume) / 100;
@@ -206,7 +206,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         }
 
         // Draw frame
-        renderFrame(ctx2d, canvas, t, visuals, meta, state.lyrics, media, state.highlightRules, audio.duration || 60);
+        renderFrame(ctx2d, canvas, t, visuals, meta, state.lyrics, media, state.highlightRules, audio.duration || 60, state.pips);
 
         // Encode video frame
         const videoFrame = new VideoFrame(canvas, {

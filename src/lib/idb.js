@@ -47,3 +47,13 @@ export async function removeFileFromIDB(key) {
     tx.onerror = (e) => reject(e.target.error);
   });
 }
+
+export async function getAllKeysFromIDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAllKeys();
+    req.onsuccess = (e) => resolve(e.target.result || []);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}

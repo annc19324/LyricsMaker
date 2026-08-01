@@ -114,10 +114,11 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
             mainImage: mediaRefs.mainImage.current,
             mainVideo: mediaRefs.mainVideo.current,
             mainMediaType: mediaRefs.mainMediaType.current,
-            pipImage: mediaRefs.pipImage.current,
+            pipImages: mediaRefs.pipImages.current,
           },
           state.highlightRules,
           getAudioDuration(),
+          state.pips
         );
 
         // ── Debug overlay (visible in preview only, not in export) ──────────
