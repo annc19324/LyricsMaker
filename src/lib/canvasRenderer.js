@@ -112,8 +112,9 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
   // 5.8 PIPs
   if (pips && Array.isArray(pips)) {
     pips.forEach((pip) => {
-      if (pip.enabled && media.pipImages?.[`pip_image_${pip.id}`]?.src) {
-        drawPip(ctx, w, h, curTime, pip, media.pipImages[`pip_image_${pip.id}`]);
+      if (pip.enabled) {
+        const img = media.pipImages?.[`pip_image_${pip.id}`];
+        drawPip(ctx, w, h, curTime, pip, img?.src ? img : null);
       }
     });
   }
@@ -361,52 +362,62 @@ function drawFireflies(ctx, w, h, curTime, visuals) {
 }
 
 // ── PIP ───────────────────────────────────────────────────────────────────────
-function drawPip(ctx, w, h, curTime, visuals, pipImage) {
-  const { pipStartTime, pipEndTime, pipFadeIn, pipFadeOut, pipX, pipY, pipSize, pipShape, pipBorderRadius } = visuals;
+function drawPip(ctx, w, h, curTime, pip, pipImage) {
+  const { startTime = 0, endTime = 0, fadeIn = 0.5, fadeOut = 0.5, x = 50, y = 50, size = 200, shape = 'rectangle', borderRadius = 12 } = pip;
   
-  if (pipStartTime > 0 && curTime < pipStartTime) return;
-  if (pipEndTime > 0 && curTime > pipEndTime) return;
+  if (startTime > 0 && curTime < startTime) return;
+  if (endTime > 0 && curTime > endTime) return;
 
   let opacity = 1.0;
-  if (pipFadeIn > 0 && curTime < pipStartTime + pipFadeIn) {
-    opacity = (curTime - pipStartTime) / pipFadeIn;
-  } else if (pipEndTime > 0 && pipFadeOut > 0 && curTime > pipEndTime - pipFadeOut) {
-    opacity = (pipEndTime - curTime) / pipFadeOut;
+  if (fadeIn > 0 && curTime < startTime + fadeIn) {
+    opacity = (curTime - startTime) / fadeIn;
+  } else if (endTime > 0 && fadeOut > 0 && curTime > endTime - fadeOut) {
+    opacity = (endTime - curTime) / fadeOut;
   }
   opacity = Math.max(0, Math.min(1, opacity));
   
   if (opacity <= 0) return;
 
-  const xPixel = (pipX / 100) * w;
-  const yPixel = (pipY / 100) * h;
+  const xPixel = (x / 100) * w;
+  const yPixel = (y / 100) * h;
 
   ctx.save();
   ctx.globalAlpha = opacity;
   
-  const imgW = pipImage.naturalWidth || pipSize;
-  const imgH = pipImage.naturalHeight || pipSize;
-  const scale = pipSize / Math.max(imgW, imgH);
+  const imgW = pipImage && pipImage.naturalWidth ? pipImage.naturalWidth : size;
+  const imgH = pipImage && pipImage.naturalHeight ? pipImage.naturalHeight : size;
+  const scale = size / Math.max(imgW, imgH);
   const dw = imgW * scale;
   const dh = imgH * scale;
 
   ctx.translate(xPixel, yPixel);
   ctx.beginPath();
 
-  if (pipShape === 'circle') {
+  if (shape === 'circle') {
     ctx.arc(0, 0, Math.min(dw, dh) / 2, 0, Math.PI * 2);
-  } else if (pipShape === 'square') {
+  } else if (shape === 'square') {
     const s = Math.min(dw, dh);
-    drawRoundRect(ctx, -s / 2, -s / 2, s, s, pipBorderRadius || 0);
+    drawRoundRect(ctx, -s / 2, -s / 2, s, s, borderRadius || 0);
   } else {
-    drawRoundRect(ctx, -dw / 2, -dh / 2, dw, dh, pipBorderRadius || 0);
+    drawRoundRect(ctx, -dw / 2, -dh / 2, dw, dh, borderRadius || 0);
   }
   ctx.clip();
 
-  if (pipShape === 'circle' || pipShape === 'square') {
-    const s = Math.min(dw, dh);
-    drawCover(ctx, pipImage, -s / 2, -s / 2, s, s);
+  if (pipImage) {
+    if (shape === 'circle' || shape === 'square') {
+      const s = Math.min(dw, dh);
+      drawCover(ctx, pipImage, -s / 2, -s / 2, s, s);
+    } else {
+      ctx.drawImage(pipImage, -dw / 2, -dh / 2, dw, dh);
+    }
   } else {
-    ctx.drawImage(pipImage, -dw / 2, -dh / 2, dw, dh);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(-dw / 2, -dh / 2, dw, dh);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Chưa có ảnh', 0, 0);
   }
   
   // Optional border for PIP

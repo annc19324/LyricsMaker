@@ -227,7 +227,7 @@ export default function TabMedia({ mediaRefs, loadAudioFile }) {
   const handleAddPip = () => {
     const id = Date.now().toString();
     addPip({
-      id, enabled: false, x: 50, y: 50, size: 200, shape: 'rectangle',
+      id, enabled: true, x: 50, y: 50, size: 200, shape: 'rectangle',
       borderRadius: 12, startTime: 0, endTime: 0, fadeIn: 0.5, fadeOut: 0.5
     });
   };
