@@ -643,35 +643,83 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
 
         if (karaokeMode === 'word') {
           // ── Word-by-word reveal: mỗi từ sáng lên theo tiến trình ──────────────
-          const words = subText.split(' ');
-          const wordCount = words.length;
-          if (wordCount === 0) return;
+          // Parse toàn bộ dòng thành segments (xử lý ký tự đặc biệt như [text])
+          const segments = parseTextSegments(subText, visuals.colorLyricBase, rules, true);
 
-          // Tính số từ cần sáng lên (thêm 0.3 để từ cuối không bị trễ)
-          const litCount = Math.min(wordCount, Math.floor(progress * wordCount + 0.3));
+          // Gán wordIndex cho từng segment: đếm bởi khoảng trắng nằm trong segment plain
+          // Mỗi lần gặp ' ' trong segment plain → tăng wordIndex
+          let wordIdx = 0;
+          const segWordIdx = []; // wordIndex tại thời điểm bắt đầu segment
+          for (const seg of segments) {
+            segWordIdx.push(wordIdx);
+            if (!seg.isSpecial) {
+              // Đếm số từ trong segment này
+              const parts = seg.text.split(' ');
+              // Mỗi space → wordIdx tăng (trừ space cuối nếu trailing)
+              for (let p = 0; p < parts.length - 1; p++) {
+                if (parts[p] !== '' || p > 0) wordIdx++;
+              }
+            }
+          }
+          // Tổng số từ = wordIdx của segment cuối + 1
+          const totalWords = wordIdx + 1;
 
-          // Tính vị trí bắt đầu X cho cả dòng (giống char mode)
-          const totalWidth = ctx.measureText(subText).width;
+          // Số từ cần sáng lên
+          const litCount = Math.min(totalWords, Math.floor(progress * totalWords + 0.3));
+
+          // Đo tổng width để tính startX (giống drawHighlightedText)
+          const baseFont = ctx.font;
+          const specialFont = highlightScale !== 1.0
+            ? baseFont.replace(/\d+(?:\.\d+)?px/, `${fontSize * scale * highlightScale}px`)
+            : baseFont;
+
+          let totalW = 0;
+          segments.forEach((s) => {
+            ctx.font = s.isSpecial ? specialFont : baseFont;
+            totalW += ctx.measureText(s.text).width;
+          });
+
           let wx = textX;
-          if (visuals.lyricAlign === 'center') wx = textX - totalWidth / 2;
-          else if (visuals.lyricAlign === 'right') wx = textX - totalWidth;
+          if (visuals.lyricAlign === 'center') wx = textX - totalW / 2;
+          else if (visuals.lyricAlign === 'right') wx = textX - totalW;
 
           ctx.save();
           ctx.shadowBlur = 0;
           ctx.shadowColor = 'transparent';
           ctx.textAlign = 'left';
-          ctx.font = `${visuals.lyricBoldEnabled !== false ? 'bold' : 'normal'} ${fontSize * scale}px "${visuals.lyricFontFamily}"`;
+          ctx.font = baseFont; // đảm bảo font đúng trong save block
 
-          for (let w = 0; w < words.length; w++) {
-            const word = words[w];
-            const isLit = w < litCount;
-            const wordColor = isLit ? visuals.colorLyricActive : hexToRgba(visuals.colorLyricBase, 0.4);
-            ctx.fillStyle = wordColor;
-            ctx.fillText(word, wx, subLineY);
-            // Advance by word + space width
-            const spacer = w < words.length - 1 ? ' ' : '';
-            wx += ctx.measureText(word + spacer).width;
-          }
+          segments.forEach((seg, si) => {
+            const sWIdx = segWordIdx[si];
+            const isLit = sWIdx < litCount;
+            ctx.font = seg.isSpecial ? specialFont : baseFont;
+
+            if (seg.isSpecial) {
+              // Ký tự đặc biệt: nếu từ đã lit → dùng màu rule; chưa lit → mờ
+              ctx.fillStyle = isLit ? seg.color : hexToRgba(seg.color, 0.3);
+            } else {
+              // Văn bản thường: lit → colorLyricActive, chưa → colorLyricBase mờ
+              // Nhưng cần xử lý từng "từ" trong segment plain
+              const parts = seg.text.split(' ');
+              let px = wx;
+              let localWordIdx = sWIdx;
+              for (let p = 0; p < parts.length; p++) {
+                const part = parts[p];
+                const partLit = localWordIdx < litCount;
+                ctx.fillStyle = partLit ? visuals.colorLyricActive : hexToRgba(visuals.colorLyricBase, 0.4);
+                if (part) ctx.fillText(part, px, subLineY);
+                const spaceW = p < parts.length - 1 ? ctx.measureText(' ').width : 0;
+                px += ctx.measureText(part).width + spaceW;
+                if (p < parts.length - 1) localWordIdx++;
+              }
+              wx += ctx.measureText(seg.text).width;
+              return; // đã vẽ, skip fillText bên dưới
+            }
+
+            ctx.fillText(seg.text, wx, subLineY);
+            wx += ctx.measureText(seg.text).width;
+          });
+
           ctx.restore();
         } else {
           // ── Char-by-char (mặc định): clip rectangle trái sang phải ───────────
@@ -781,6 +829,45 @@ function drawDefaultVinyl(ctx, x, y, size, rotation) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Parse text thành segments (dùng chung cho drawHighlightedText và word-by-word) ──────────────
+function parseTextSegments(text, baseColor, rules, shouldHighlight) {
+  if (!text) return [];
+  if (!rules || !rules.length) return [{ text, color: baseColor, isSpecial: false }];
+
+  const segments = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    let matched = false;
+    for (const rule of rules) {
+      const open = rule.pattern;
+      const close = rule.close || '';
+      if (text.startsWith(open, cursor)) {
+        const endIdx = close ? text.indexOf(close, cursor + open.length) : -1;
+        if (close && endIdx !== -1) {
+          segments.push({ text: text.slice(cursor + open.length, endIdx), color: shouldHighlight ? rule.color : baseColor, isSpecial: true });
+          cursor = endIdx + close.length;
+          matched = true; break;
+        } else if (!close) {
+          let end = cursor + open.length;
+          while (end < text.length && text[end] !== ' ') end++;
+          segments.push({ text: text.slice(cursor + open.length, end), color: shouldHighlight ? rule.color : baseColor, isSpecial: true });
+          cursor = end; matched = true; break;
+        }
+      }
+    }
+    if (!matched) {
+      let nextSpecial = text.length;
+      for (const rule of rules) {
+        const idx = text.indexOf(rule.pattern, cursor);
+        if (idx !== -1 && idx < nextSpecial) nextSpecial = idx;
+      }
+      if (nextSpecial > cursor) { segments.push({ text: text.slice(cursor, nextSpecial), color: baseColor, isSpecial: false }); cursor = nextSpecial; }
+      else { segments.push({ text: text[cursor], color: baseColor, isSpecial: false }); cursor++; }
+    }
+  }
+  return segments;
+}
+
 function drawHighlightedText(ctx, text, x, y, fontSize, baseColor, rules = [], shouldHighlight = true, highlightScale = 1.0) {
   if (!text) return;
   if (!rules.length) { ctx.fillStyle = baseColor; ctx.fillText(text, x, y); return; }
