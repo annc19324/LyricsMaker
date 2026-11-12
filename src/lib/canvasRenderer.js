@@ -610,12 +610,21 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     const karaokeEnabled = visuals.karaokeEnabled !== false && karaokeSpeedMult > 0;
     const karaokeMode = visuals.karaokeMode || 'char'; // 'char' | 'word'
     const highlightScale = visuals.highlightFontScale !== undefined ? visuals.highlightFontScale : 1.0;
+    const baseColorEnabled = visuals.lyricBaseColorEnabled !== false; // mặc định true
 
     subLines.forEach((subText, subIdx) => {
       const subLineY = yPos + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
-      let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
-      if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
-      drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive && !karaokeEnabled, highlightScale);
+
+      // Vẽ chữ nền (base): bỏ qua nếu tắt màu chữ gốc
+      // - Dòng không active: bỏ qua hoàn toàn khi tắt
+      // - Dòng active + karaoke tắt: vẫn vẽ (dùng colorLyricActive)
+      // - Dòng active + karaoke bật: bỏ qua (karaoke overlay sẽ vẽ chữ)
+      const skipBase = !baseColorEnabled && (!isActive || karaokeEnabled);
+      if (!skipBase) {
+        let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
+        if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
+        drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive && !karaokeEnabled, highlightScale);
+      }
 
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
         const tStart = lyrics[i].time;

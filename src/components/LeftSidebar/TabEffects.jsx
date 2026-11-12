@@ -111,6 +111,8 @@ export default function TabEffects() {
           <ColorPickerRow id="color-lyric-active" label="Màu Karaoke"
             value={v?.colorLyricActive ?? '#ff2e93'} onChange={(c) => sv('colorLyricActive', c)} />
         </div>
+        <ToggleRow id="toggle-lyric-base-color" label="Hiển thị màu chữ gốc"
+          checked={v?.lyricBaseColorEnabled !== false} onChange={(c) => sv('lyricBaseColorEnabled', c)} />
         <ToggleRow id="toggle-karaoke" label="Bật hiệu ứng Karaoke"
           checked={v?.karaokeEnabled !== false} onChange={(c) => sv('karaokeEnabled', c)} />
         {v?.karaokeEnabled !== false && (

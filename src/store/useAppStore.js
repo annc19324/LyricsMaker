@@ -52,6 +52,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       pipStartTime: 0, pipEndTime: 0, pipFadeIn: 0.5, pipFadeOut: 0.5,
       scaleEnabled: false, scaleMode: 'beat', scaleIntensity: 8, scaleSpeed: 1.0, scaleSensitivity: 1.0,
       karaokeMode: 'char', // 'char' | 'word'
+      lyricBaseColorEnabled: true,
     },
     '9:16': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
@@ -72,6 +73,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       pipStartTime: 0, pipEndTime: 0, pipFadeIn: 0.5, pipFadeOut: 0.5,
       scaleEnabled: false, scaleMode: 'beat', scaleIntensity: 8, scaleSpeed: 1.0, scaleSensitivity: 1.0,
       karaokeMode: 'char',
+      lyricBaseColorEnabled: true,
     },
     '1:1': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
@@ -92,6 +94,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       pipStartTime: 0, pipEndTime: 0, pipFadeIn: 0.5, pipFadeOut: 0.5,
       scaleEnabled: false, scaleMode: 'beat', scaleIntensity: 8, scaleSpeed: 1.0, scaleSensitivity: 1.0,
       karaokeMode: 'char',
+      lyricBaseColorEnabled: true,
     },
   },
   highlightRules: [{ pattern: '[', close: ']', color: '#f59e0b' }],
