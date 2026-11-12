@@ -615,17 +615,17 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     subLines.forEach((subText, subIdx) => {
       const subLineY = yPos + (subIdx - (subLines.length - 1) / 2) * subLineSpacing;
 
-      // Vẽ chữ nền (base): bỏ qua nếu tắt màu chữ gốc
-      // - Dòng không active: bỏ qua hoàn toàn khi tắt
-      // - Dòng active + karaoke tắt: vẫn vẽ (dùng colorLyricActive)
-      // - Dòng active + karaoke bật: bỏ qua (karaoke overlay sẽ vẽ chữ)
-      const skipBase = !baseColorEnabled && (!isActive || karaokeEnabled);
+      // Vẽ chữ nền (base):
+      // - Nếu tắt màu chữ gốc (!baseColorEnabled): ẩn các dòng không active và dòng active khi karaoke bật
+      // - Nếu là karaokeMode === 'word': dòng active được Word Mode vẽ trực tiếp (cả từ chưa tới và từ đã tới)
+      //   để tránh vẽ đè hoặc lệch vị trí
+      const skipBase = (!baseColorEnabled && (!isActive || karaokeEnabled)) || (isActive && karaokeEnabled && karaokeMode === 'word');
       if (!skipBase) {
         let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
         if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
-        // shouldHighlight = isActive: dòng active luôn hiển thị màu rule của ký tự đặc biệt ngay từ đầu,
-        // không cần đợi karaoke clip quét tới mới thấy màu
-        drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive, highlightScale);
+        // shouldHighlight = isActive && !karaokeEnabled: khi karaoke bật, chữ nền KHÔNG hiện màu rule trước
+        // để karaoke quét qua mới hiển thị màu từng chữ/từ
+        drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive && !karaokeEnabled, highlightScale);
       }
 
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
@@ -654,84 +654,77 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
 
         if (karaokeMode === 'word') {
           // ── Word-by-word reveal: mỗi từ sáng lên theo tiến trình ──────────────
-          // Parse toàn bộ dòng thành segments (xử lý ký tự đặc biệt như [text])
+          // Parse toàn bộ dòng thành segments (xử lý ký tự đặc biệt như [text] hoặc (text))
           const segments = parseTextSegments(subText, visuals.colorLyricBase, rules, true);
 
-          // Gán wordIndex cho từng segment: đếm bởi khoảng trắng nằm trong segment plain
-          // Mỗi lần gặp ' ' trong segment plain → tăng wordIndex
-          let wordIdx = 0;
-          const segWordIdx = []; // wordIndex tại thời điểm bắt đầu segment
-          for (const seg of segments) {
-            segWordIdx.push(wordIdx);
-            if (!seg.isSpecial) {
-              // Đếm số từ trong segment này
-              const parts = seg.text.split(' ');
-              // Mỗi space → wordIdx tăng (trừ space cuối nếu trailing)
-              for (let p = 0; p < parts.length - 1; p++) {
-                if (parts[p] !== '' || p > 0) wordIdx++;
-              }
-            }
-          }
-          // Tổng số từ = wordIdx của segment cuối + 1
-          const totalWords = wordIdx + 1;
-
-          // Số từ cần sáng lên
-          const litCount = Math.min(totalWords, Math.floor(progress * totalWords + 0.3));
-
-          // Đo tổng width để tính startX (giống drawHighlightedText)
           const baseFont = ctx.font;
           const specialFont = highlightScale !== 1.0
             ? baseFont.replace(/\d+(?:\.\d+)?px/, `${fontSize * scale * highlightScale}px`)
             : baseFont;
 
-          let totalW = 0;
-          segments.forEach((s) => {
-            ctx.font = s.isSpecial ? specialFont : baseFont;
-            totalW += ctx.measureText(s.text).width;
-          });
+          // Tách tất cả segments thành danh sách token (từ và khoảng trắng)
+          // để đếm và hiển thị màu chính xác cho từng từ kể cả trong ký tự đặc biệt
+          const items = [];
+          let wordCount = 0;
 
-          let wx = textX;
-          if (visuals.lyricAlign === 'center') wx = textX - totalW / 2;
-          else if (visuals.lyricAlign === 'right') wx = textX - totalW;
-
-          ctx.save();
-          ctx.shadowBlur = 0;
-          ctx.shadowColor = 'transparent';
-          ctx.textAlign = 'left';
-          ctx.font = baseFont; // đảm bảo font đúng trong save block
-
-          segments.forEach((seg, si) => {
-            const sWIdx = segWordIdx[si];
-            const isLit = sWIdx < litCount;
-            ctx.font = seg.isSpecial ? specialFont : baseFont;
-
-            if (seg.isSpecial) {
-              // Ký tự đặc biệt: nếu từ đã lit → dùng màu rule; chưa lit → mờ
-              ctx.fillStyle = isLit ? seg.color : hexToRgba(seg.color, 0.3);
-            } else {
-              // Văn bản thường: lit → colorLyricActive, chưa → colorLyricBase mờ
-              // Nhưng cần xử lý từng "từ" trong segment plain
-              const parts = seg.text.split(' ');
-              let px = wx;
-              let localWordIdx = sWIdx;
-              for (let p = 0; p < parts.length; p++) {
-                const part = parts[p];
-                const partLit = localWordIdx < litCount;
-                ctx.fillStyle = partLit ? visuals.colorLyricActive : hexToRgba(visuals.colorLyricBase, 0.4);
-                if (part) ctx.fillText(part, px, subLineY);
-                const spaceW = p < parts.length - 1 ? ctx.measureText(' ').width : 0;
-                px += ctx.measureText(part).width + spaceW;
-                if (p < parts.length - 1) localWordIdx++;
+          segments.forEach((seg) => {
+            const font = seg.isSpecial ? specialFont : baseFont;
+            ctx.font = font;
+            const tokens = seg.text.match(/\S+|\s+/g) || [];
+            tokens.forEach((tok) => {
+              const isWhitespace = /^\s+$/.test(tok);
+              const wordIdx = isWhitespace ? Math.max(0, wordCount - 1) : wordCount;
+              if (!isWhitespace) {
+                wordCount++;
               }
-              wx += ctx.measureText(seg.text).width;
-              return; // đã vẽ, skip fillText bên dưới
-            }
-
-            ctx.fillText(seg.text, wx, subLineY);
-            wx += ctx.measureText(seg.text).width;
+              const width = ctx.measureText(tok).width;
+              items.push({
+                text: tok,
+                isWhitespace,
+                wordIndex: wordIdx,
+                isSpecial: seg.isSpecial,
+                specialColor: seg.color,
+                font,
+                width,
+              });
+            });
           });
 
-          ctx.restore();
+          if (items.length > 0) {
+            const totalW = items.reduce((sum, it) => sum + it.width, 0);
+            let wx = textX;
+            if (visuals.lyricAlign === 'center') wx = textX - totalW / 2;
+            else if (visuals.lyricAlign === 'right') wx = textX - totalW;
+
+            // Số từ cần sáng lên theo tiến trình karaoke
+            const litCount = wordCount > 0 ? Math.min(wordCount, Math.floor(progress * wordCount + 0.3)) : 0;
+
+            ctx.save();
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+            ctx.textAlign = 'left';
+
+            let curX = wx;
+            items.forEach((item) => {
+              const isLit = item.wordIndex < litCount;
+              ctx.font = item.font;
+
+              if (isLit) {
+                // Đã tới từ này: nếu nằm trong ký tự đặc biệt thì hiện màu rule, ngược lại màu active karaoke
+                ctx.fillStyle = item.isSpecial ? item.specialColor : visuals.colorLyricActive;
+                ctx.fillText(item.text, curX, subLineY);
+              } else if (baseColorEnabled) {
+                // Chưa tới từ này: nếu bật hiển thị màu chữ gốc -> hiện màu chữ gốc
+                ctx.fillStyle = visuals.colorLyricBase;
+                ctx.fillText(item.text, curX, subLineY);
+              }
+              // Nếu !isLit và !baseColorEnabled thì không vẽ gì (từ chưa hát sẽ ẩn)
+
+              curX += item.width;
+            });
+
+            ctx.restore();
+          }
         } else {
           // ── Char-by-char (mặc định): clip rectangle trái sang phải ───────────
           const textWidth = ctx.measureText(subText).width;
