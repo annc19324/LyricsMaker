@@ -113,6 +113,15 @@ export default function TabEffects() {
         </div>
         <ToggleRow id="toggle-karaoke" label="Bật hiệu ứng Karaoke"
           checked={v?.karaokeEnabled !== false} onChange={(c) => sv('karaokeEnabled', c)} />
+        {v?.karaokeEnabled !== false && (
+          <div className="form-group">
+            <label>Kiểu hiệu ứng Karaoke</label>
+            <select value={v?.karaokeMode || 'char'} onChange={(e) => sv('karaokeMode', e.target.value)}>
+              <option value="char">Từng ký tự – Trái sang Phải (Mặc định)</option>
+              <option value="word">Từng từ – Mỗi từ sáng lên theo nhạc</option>
+            </select>
+          </div>
+        )}
         <SliderRow id="slider-karaoke-speed" label="Tốc độ chuyển màu Karaoke" min={0} max={5} step={0.1}
           value={v?.karaokeSpeed ?? 1.0}
           displayValue={v?.karaokeSpeed === 0 ? 'Tắt' : `${v?.karaokeSpeed ?? 1.0}x`}

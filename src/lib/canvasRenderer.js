@@ -608,6 +608,7 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
     const subLines = subLinesArray[i];
     const karaokeSpeedMult = visuals.karaokeSpeed !== undefined ? visuals.karaokeSpeed : 1.0;
     const karaokeEnabled = visuals.karaokeEnabled !== false && karaokeSpeedMult > 0;
+    const karaokeMode = visuals.karaokeMode || 'char'; // 'char' | 'word'
     const highlightScale = visuals.highlightFontScale !== undefined ? visuals.highlightFontScale : 1.0;
 
     subLines.forEach((subText, subIdx) => {
@@ -617,7 +618,6 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
       drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive && !karaokeEnabled, highlightScale);
 
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
-        const textWidth = ctx.measureText(subText).width;
         const tStart = lyrics[i].time;
         const tEnd = (lyrics[i].endTime !== undefined && lyrics[i].endTime !== null && lyrics[i].endTime > tStart)
           ? lyrics[i].endTime
@@ -641,17 +641,53 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
         let progress = actualFillDuration > 0 ? (curTime - subStart) / actualFillDuration : 0;
         progress = Math.max(0, Math.min(1, progress));
 
-        ctx.save();
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = 'transparent';
-        ctx.beginPath();
-        let startX = textX;
-        if (visuals.lyricAlign === 'center') startX = textX - textWidth / 2;
-        else if (visuals.lyricAlign === 'right') startX = textX - textWidth;
-        ctx.rect(startX - 10, subLineY - fontSize * scale * 0.8, textWidth * progress + 10, fontSize * scale * 1.6);
-        ctx.clip();
-        drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive, rules, true, highlightScale);
-        ctx.restore();
+        if (karaokeMode === 'word') {
+          // ── Word-by-word reveal: mỗi từ sáng lên theo tiến trình ──────────────
+          const words = subText.split(' ');
+          const wordCount = words.length;
+          if (wordCount === 0) return;
+
+          // Tính số từ cần sáng lên (thêm 0.3 để từ cuối không bị trễ)
+          const litCount = Math.min(wordCount, Math.floor(progress * wordCount + 0.3));
+
+          // Tính vị trí bắt đầu X cho cả dòng (giống char mode)
+          const totalWidth = ctx.measureText(subText).width;
+          let wx = textX;
+          if (visuals.lyricAlign === 'center') wx = textX - totalWidth / 2;
+          else if (visuals.lyricAlign === 'right') wx = textX - totalWidth;
+
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.shadowColor = 'transparent';
+          ctx.textAlign = 'left';
+          ctx.font = `${visuals.lyricBoldEnabled !== false ? 'bold' : 'normal'} ${fontSize * scale}px "${visuals.lyricFontFamily}"`;
+
+          for (let w = 0; w < words.length; w++) {
+            const word = words[w];
+            const isLit = w < litCount;
+            const wordColor = isLit ? visuals.colorLyricActive : hexToRgba(visuals.colorLyricBase, 0.4);
+            ctx.fillStyle = wordColor;
+            ctx.fillText(word, wx, subLineY);
+            // Advance by word + space width
+            const spacer = w < words.length - 1 ? ' ' : '';
+            wx += ctx.measureText(word + spacer).width;
+          }
+          ctx.restore();
+        } else {
+          // ── Char-by-char (mặc định): clip rectangle trái sang phải ───────────
+          const textWidth = ctx.measureText(subText).width;
+          ctx.save();
+          ctx.shadowBlur = 0;
+          ctx.shadowColor = 'transparent';
+          ctx.beginPath();
+          let startX = textX;
+          if (visuals.lyricAlign === 'center') startX = textX - textWidth / 2;
+          else if (visuals.lyricAlign === 'right') startX = textX - textWidth;
+          ctx.rect(startX - 10, subLineY - fontSize * scale * 0.8, textWidth * progress + 10, fontSize * scale * 1.6);
+          ctx.clip();
+          drawHighlightedText(ctx, subText, textX, subLineY, fontSize * scale, visuals.colorLyricActive, rules, true, highlightScale);
+          ctx.restore();
+        }
       }
     });
     ctx.restore();

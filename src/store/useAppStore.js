@@ -51,6 +51,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       pipEnabled: false, pipX: 80, pipY: 80, pipSize: 200, pipShape: 'rectangle', pipBorderRadius: 12,
       pipStartTime: 0, pipEndTime: 0, pipFadeIn: 0.5, pipFadeOut: 0.5,
       scaleEnabled: false, scaleMode: 'beat', scaleIntensity: 8, scaleSpeed: 1.0, scaleSensitivity: 1.0,
+      karaokeMode: 'char', // 'char' | 'word'
     },
     '9:16': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
@@ -70,6 +71,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       pipEnabled: false, pipX: 50, pipY: 80, pipSize: 180, pipShape: 'rectangle', pipBorderRadius: 12,
       pipStartTime: 0, pipEndTime: 0, pipFadeIn: 0.5, pipFadeOut: 0.5,
       scaleEnabled: false, scaleMode: 'beat', scaleIntensity: 8, scaleSpeed: 1.0, scaleSensitivity: 1.0,
+      karaokeMode: 'char',
     },
     '1:1': {
       bgBlur: 0, lineSpacing: 1.5, subLineSpacing: 1.2, bgFloatEnabled: false, bgFloatSpeed: 1.0, karaokeEnabled: true, transitionEnabled: true,
@@ -89,6 +91,7 @@ Thử ngay nút xuất video trực tiếp cực kì tiện lợi
       pipEnabled: false, pipX: 80, pipY: 80, pipSize: 150, pipShape: 'rectangle', pipBorderRadius: 12,
       pipStartTime: 0, pipEndTime: 0, pipFadeIn: 0.5, pipFadeOut: 0.5,
       scaleEnabled: false, scaleMode: 'beat', scaleIntensity: 8, scaleSpeed: 1.0, scaleSensitivity: 1.0,
+      karaokeMode: 'char',
     },
   },
   highlightRules: [{ pattern: '[', close: ']', color: '#f59e0b' }],
