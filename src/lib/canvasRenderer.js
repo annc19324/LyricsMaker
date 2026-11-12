@@ -56,7 +56,7 @@ export function resetScrollY() {}
  * @param {Array}  highlightRules - [{ pattern, close, color }]
  * @param {number} audioDuration  - total audio duration in seconds
  */
-export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, highlightRules = [], audioDuration = 60, pips = []) {
+export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, highlightRules = [], audioDuration = 60, pips = [], audioLevel = { beat: 0, volume: 0 }) {
   let w = canvas.width;
   let h = canvas.height;
 
@@ -96,7 +96,7 @@ export function renderFrame(ctx, canvas, curTime, visuals, meta, lyrics, media, 
   // 4. Main media (disc / image / video)
   let mainOffset = { x: 0, y: 0 };
   if (media.mainMediaType !== 'none') {
-    mainOffset = drawMainMedia(ctx, w, h, curTime, visuals, media);
+    mainOffset = drawMainMedia(ctx, w, h, curTime, visuals, media, audioLevel);
   }
 
   // 5. Fog
@@ -200,10 +200,10 @@ function drawSongInfo(ctx, w, h, visuals, meta, rules) {
 }
 
 // ── Main Media (disc / image / video) ────────────────────────────────────────
-function drawMainMedia(ctx, w, h, curTime, visuals, media) {
+function drawMainMedia(ctx, w, h, curTime, visuals, media, audioLevel = { beat: 0, volume: 0 }) {
   const mainXPixel = (visuals.mainX / 100) * w;
   let mainYPixel = (visuals.mainY / 100) * h;
-  const size = visuals.mainSize;
+  const baseSize = visuals.mainSize;
   const offset = { x: 0, y: 0 };
 
   if (visuals.floatEnabled) {
@@ -211,6 +211,53 @@ function drawMainMedia(ctx, w, h, curTime, visuals, media) {
     mainYPixel += floatOffset;
     offset.y = floatOffset;
   }
+
+  // ── Phóng to thu nhỏ (Scale / Pulse / Beat / Heartbeat) ──
+  let scaleFactor = 1.0;
+  if (visuals.scaleEnabled) {
+    const intensity = (visuals.scaleIntensity !== undefined ? visuals.scaleIntensity : 15) / 100;
+    const speed = visuals.scaleSpeed !== undefined ? visuals.scaleSpeed : 1.0;
+    const sensitivity = visuals.scaleSensitivity !== undefined ? visuals.scaleSensitivity : 1.2;
+    const mode = visuals.scaleMode || 'beat';
+
+    if (mode === 'heartbeat') {
+      // Heartbeat Effect: Phóng to nhanh 2 nhịp (lub-dub) rồi thu nhỏ và nghỉ
+      const cycle = (curTime * speed * 1.25) % 1.0;
+      let beatVal = 0;
+      if (cycle < 0.14) {
+        // Nhịp 1 (LUB): đập mạnh
+        beatVal = Math.sin((cycle / 0.14) * Math.PI);
+      } else if (cycle >= 0.17 && cycle < 0.30) {
+        // Nhịp 2 (DUB): đập nhẹ hơn
+        beatVal = Math.sin(((cycle - 0.17) / 0.13) * Math.PI) * 0.7;
+      }
+      scaleFactor += beatVal * intensity;
+    } else if (mode === 'pulse') {
+      // Pulse Effect: Phóng to - thu nhỏ nhịp nhàng như nhịp thở / sóng sine
+      const pulseVal = (Math.sin(curTime * Math.PI * 2 * speed) + 1) / 2;
+      scaleFactor += pulseVal * intensity;
+    } else if (mode === 'beat') {
+      // Beat Sync Zoom: Phóng to theo nhịp beat / bass của nhạc
+      const beatVal = audioLevel && audioLevel.beat !== undefined ? audioLevel.beat : 0;
+      if (beatVal > 0) {
+        scaleFactor += Math.min(1.5, beatVal * sensitivity) * intensity;
+      } else {
+        const fb = (Math.sin(curTime * Math.PI * 2 * speed) + 1) / 2;
+        scaleFactor += fb * intensity * 0.3;
+      }
+    } else if (mode === 'audio') {
+      // Audio Reactive Scale: Thay đổi theo cường độ âm thanh (Volume toàn dải)
+      const volVal = audioLevel && audioLevel.volume !== undefined ? audioLevel.volume : 0;
+      if (volVal > 0) {
+        scaleFactor += Math.min(1.5, volVal * sensitivity) * intensity;
+      } else {
+        const fb = (Math.sin(curTime * Math.PI * 2 * speed) + 1) / 2;
+        scaleFactor += fb * intensity * 0.3;
+      }
+    }
+  }
+
+  const size = baseSize * scaleFactor;
 
   const spinEnabled = visuals.spinEnabled !== false;
   const rotationAngle = spinEnabled ? curTime * 0.72 * (visuals.spinSpeed || 1.0) : 0;

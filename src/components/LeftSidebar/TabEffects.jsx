@@ -36,6 +36,39 @@ export default function TabEffects() {
         <SliderRow id="slider-float-speed" label="Tốc độ trôi nổi" min={0.1} max={5} step={0.1}
           value={v?.floatSpeed ?? 1} displayValue={`${v?.floatSpeed ?? 1}x`}
           onChange={(val) => sv('floatSpeed', val)} />
+
+        <h4 style={{ marginTop: '16px', marginBottom: '10px', color: 'var(--color-primary)' }}>
+          <i className="fa-solid fa-heart-pulse"></i> Phóng To Thu Nhỏ / Nhịp Tim (Scale & Pulse)
+        </h4>
+        <ToggleRow id="toggle-scale" label="Bật hiệu ứng phóng to - thu nhỏ"
+          checked={v?.scaleEnabled === true} onChange={(c) => sv('scaleEnabled', c)} />
+        {v?.scaleEnabled && (
+          <>
+            <div className="form-group">
+              <label>Kiểu hiệu ứng phóng to</label>
+              <select value={v?.scaleMode || 'beat'} onChange={(e) => sv('scaleMode', e.target.value)}>
+                <option value="beat">Beat Sync Zoom (Phóng to theo nhịp beat của nhạc)</option>
+                <option value="audio">Audio Reactive Scale (Kích thước thay đổi theo cường độ âm thanh)</option>
+                <option value="heartbeat">Heartbeat Effect (Phóng to nhanh rồi thu nhỏ - Mô phỏng tim đập)</option>
+                <option value="pulse">Pulse Effect (Ảnh phóng to – thu nhỏ nhịp nhàng liên tục)</option>
+              </select>
+            </div>
+            <SliderRow id="slider-scale-intensity" label="Mức độ phóng to (Zoom)" min={2} max={60} step={1}
+              value={v?.scaleIntensity ?? 15} displayValue={`+${v?.scaleIntensity ?? 15}%`}
+              onChange={(val) => sv('scaleIntensity', val)} />
+            {(v?.scaleMode === 'heartbeat' || v?.scaleMode === 'pulse') && (
+              <SliderRow id="slider-scale-speed" label="Tốc độ nhịp đập" min={0.2} max={4} step={0.1}
+                value={v?.scaleSpeed ?? 1.0} displayValue={`${v?.scaleSpeed ?? 1.0}x`}
+                onChange={(val) => sv('scaleSpeed', val)} />
+            )}
+            {(v?.scaleMode === 'beat' || v?.scaleMode === 'audio' || !v?.scaleMode) && (
+              <SliderRow id="slider-scale-sensitivity" label="Độ nhạy bắt nhạc (Sensitivity)" min={0.2} max={3} step={0.1}
+                value={v?.scaleSensitivity ?? 1.2} displayValue={`${v?.scaleSensitivity ?? 1.2}x`}
+                onChange={(val) => sv('scaleSensitivity', val)} />
+            )}
+          </>
+        )}
+
         <SliderRow id="slider-fog-intensity" label="Mật độ sương mù (Fog)" min={0} max={100}
           value={v?.fogIntensity ?? 30} displayValue={`${v?.fogIntensity ?? 30}%`}
           onChange={(val) => sv('fogIntensity', val)} />

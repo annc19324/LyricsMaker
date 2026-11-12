@@ -6,7 +6,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import useAppStore from '../store/useAppStore';
 import { renderFrame, initFogParticles, initFireflyParticles, resetScrollY } from '../lib/canvasRenderer';
 
-export function useCanvas(canvasRef, audioRef, mediaRefs) {
+export function useCanvas(canvasRef, audioRef, mediaRefs, getAudioData) {
   const rafRef = useRef(null);
 
   const activeRatio = useAppStore((s) => s.activeRatio);
@@ -101,6 +101,8 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
           }
         }
 
+        const audioLevel = getAudioData ? getAudioData() : { beat: 0, volume: 0 };
+
         renderFrame(
           ctx2d, canvas,
           curTime,
@@ -118,7 +120,8 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
           },
           state.highlightRules,
           getAudioDuration(),
-          state.pips
+          state.pips,
+          audioLevel
         );
 
         // ── Debug overlay (visible in preview only, not in export) ──────────
@@ -150,7 +153,7 @@ export function useCanvas(canvasRef, audioRef, mediaRefs) {
       rafRef.current = requestAnimationFrame(tick);
     };
     tick(performance.now());
-  }, [canvasRef, audioRef, mediaRefs]);
+  }, [canvasRef, audioRef, mediaRefs, getAudioData]);
 
   const stopRenderLoop = useCallback(() => {
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }

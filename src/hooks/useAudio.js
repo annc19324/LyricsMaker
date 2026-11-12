@@ -13,6 +13,10 @@ export function useAudio(audioRef) {
   const audioDestRef = useRef(null);
   const audioSourceRef = useRef(null);
   const audioFileLoadedRef = useRef(false);
+  const analyserRef = useRef(null);
+  const freqDataRef = useRef(new Uint8Array(64));
+  const smoothBeatRef = useRef(0);
+  const smoothVolRef = useRef(0);
 
   const volume = useAppStore((s) => s.volume);
   const audioStart = useAppStore((s) => s.audioStart);
@@ -48,8 +52,12 @@ export function useAudio(audioRef) {
     const speakerGain = ctx.createGain();
     const dest = ctx.createMediaStreamDestination();
     const source = ctx.createMediaElementSource(audio);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 128;
+    analyser.smoothingTimeConstant = 0.4;
 
-    source.connect(gain);
+    source.connect(analyser);
+    analyser.connect(gain);
     gain.connect(speakerGain);
     speakerGain.connect(ctx.destination);
     gain.connect(dest);
@@ -59,6 +67,7 @@ export function useAudio(audioRef) {
     speakerGainRef.current = speakerGain;
     audioDestRef.current = dest;
     audioSourceRef.current = source;
+    analyserRef.current = analyser;
   }, [audioRef]);
 
   const updateGainAndFades = useCallback(() => {
@@ -104,14 +113,57 @@ export function useAudio(audioRef) {
     }
   }, [audioRef]);
 
+  const getAudioData = useCallback(() => {
+    const analyser = analyserRef.current;
+    const audio = audioRef.current;
+    if (!analyser || !audio || audio.paused) {
+      smoothBeatRef.current *= 0.85;
+      smoothVolRef.current *= 0.85;
+      return { beat: smoothBeatRef.current, volume: smoothVolRef.current };
+    }
+
+    analyser.getByteFrequencyData(freqDataRef.current);
+    const data = freqDataRef.current;
+
+    // Bass / Beat: lấy các bin tần số thấp (bins 1 - 5, khoảng 30Hz - 200Hz)
+    let bassSum = 0;
+    const bassCount = 5;
+    for (let i = 1; i <= bassCount; i++) {
+      bassSum += data[i];
+    }
+    const rawBass = bassSum / (bassCount * 255);
+    const punchyBass = Math.pow(rawBass, 1.5);
+    if (punchyBass > smoothBeatRef.current) {
+      smoothBeatRef.current = punchyBass;
+    } else {
+      smoothBeatRef.current = smoothBeatRef.current * 0.86;
+    }
+
+    // Volume toàn dải
+    let totalSum = 0;
+    const totalCount = data.length;
+    for (let i = 0; i < totalCount; i++) {
+      totalSum += data[i];
+    }
+    const rawVol = totalSum / (totalCount * 255);
+    smoothVolRef.current = smoothVolRef.current * 0.7 + rawVol * 0.3;
+
+    return {
+      beat: smoothBeatRef.current,
+      volume: smoothVolRef.current,
+    };
+  }, [audioRef]);
+
   return {
     audioCtxRef,
     gainRef,
     speakerGainRef,
     audioDestRef,
     audioFileLoadedRef,
+    analyserRef,
     initAudioContext,
     updateGainAndFades,
     loadAudioFile,
+    getAudioData,
   };
 }

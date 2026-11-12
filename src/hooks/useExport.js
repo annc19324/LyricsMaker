@@ -176,6 +176,53 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
       const audioStartOffset = audioBuffer ? Math.floor(trimStart * sampleRate) - syncOffsetSamples : 0;
       const totalAudioSamples = Math.floor(totalDuration * sampleRate);
 
+      // Pre-compute audio levels (Beat & Volume) per frame for audio-reactive zoom
+      const precomputedAudioLevels = [];
+      if (audioBuffer) {
+        const chData = audioBuffer.getChannelData(0);
+        const windowSize = 1024;
+        let smoothBeat = 0;
+        let smoothVol = 0;
+
+        for (let frame = 0; frame < totalFrames; frame++) {
+          const t = Math.max(0, trimStart + frame / fps + (state.exportOffset || 0) / 1000);
+          const sampleIdx = Math.floor(t * sampleRate);
+
+          const start = Math.max(0, sampleIdx - windowSize);
+          const end = Math.min(chData.length, sampleIdx + windowSize);
+          const count = end - start;
+
+          let sumSq = 0;
+          let bassSq = 0;
+          let lp = 0;
+          if (count > 0) {
+            for (let i = start; i < end; i++) {
+              const s = chData[i];
+              sumSq += s * s;
+              lp += 0.08 * (s - lp);
+              bassSq += lp * lp;
+            }
+          }
+
+          const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
+          const bassRms = count > 0 ? Math.sqrt(bassSq / count) : 0;
+          const rawBeat = Math.min(1.0, Math.pow(bassRms * 4.2, 1.5));
+          const rawVol = Math.min(1.0, rms * 3.5);
+
+          if (rawBeat > smoothBeat) {
+            smoothBeat = rawBeat;
+          } else {
+            smoothBeat = smoothBeat * 0.86;
+          }
+          smoothVol = smoothVol * 0.7 + rawVol * 0.3;
+
+          precomputedAudioLevels.push({
+            beat: smoothBeat,
+            volume: smoothVol,
+          });
+        }
+      }
+
       for (let frame = 0; frame < totalFrames; frame++) {
         if (cancelRef.current) break;
 
@@ -205,8 +252,9 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
           });
         }
 
-        // Draw frame
-        renderFrame(ctx2d, canvas, t, visuals, meta, state.lyrics, media, state.highlightRules, audio.duration || 60, state.pips);
+        // Draw frame with audio-reactive level
+        const currentAudioLevel = precomputedAudioLevels[frame] || { beat: 0, volume: 0 };
+        renderFrame(ctx2d, canvas, t, visuals, meta, state.lyrics, media, state.highlightRules, audio.duration || 60, state.pips, currentAudioLevel);
 
         // Encode video frame
         const videoFrame = new VideoFrame(canvas, {

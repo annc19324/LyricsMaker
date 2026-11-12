@@ -51,9 +51,10 @@ export default function App() {
   const {
     audioCtxRef, gainRef, speakerGainRef, audioDestRef,
     initAudioContext, updateGainAndFades, loadAudioFile,
+    getAudioData,
   } = useAudio(audioRef);
 
-  const { updateCanvasSize, startRenderLoop, stopRenderLoop } = useCanvas(canvasRef, audioRef, mediaRefs);
+  const { updateCanvasSize, startRenderLoop, stopRenderLoop } = useCanvas(canvasRef, audioRef, mediaRefs, getAudioData);
 
   const {
     isExporting, showModal, exportDone,
