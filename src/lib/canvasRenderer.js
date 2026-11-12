@@ -623,7 +623,9 @@ function drawLyrics(ctx, w, h, curTime, visuals, lyrics, rules, audioDuration) {
       if (!skipBase) {
         let baseClr = isActive ? visuals.colorLyricBase : hexToRgba(visuals.colorLyricBase, lineOpacity);
         if (isActive && !karaokeEnabled) baseClr = visuals.colorLyricActive;
-        drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive && !karaokeEnabled, highlightScale);
+        // shouldHighlight = isActive: dòng active luôn hiển thị màu rule của ký tự đặc biệt ngay từ đầu,
+        // không cần đợi karaoke clip quét tới mới thấy màu
+        drawHighlightedText(ctx, subText, textX, subLineY, isActive ? fontSize * scale : fontSize, baseClr, rules, isActive, highlightScale);
       }
 
       if (isActive && karaokeEnabled && lyrics[i].time !== null) {
