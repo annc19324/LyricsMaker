@@ -14,9 +14,10 @@ export function useAudio(audioRef) {
   const audioSourceRef = useRef(null);
   const audioFileLoadedRef = useRef(false);
   const analyserRef = useRef(null);
-  const freqDataRef = useRef(new Uint8Array(64));
+  const freqDataRef = useRef(new Uint8Array(128));
   const smoothBeatRef = useRef(0);
   const smoothVolRef = useRef(0);
+  const bassHistoryRef = useRef(0.15);
 
   const volume = useAppStore((s) => s.volume);
   const audioStart = useAppStore((s) => s.audioStart);
@@ -53,8 +54,8 @@ export function useAudio(audioRef) {
     const dest = ctx.createMediaStreamDestination();
     const source = ctx.createMediaElementSource(audio);
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 128;
-    analyser.smoothingTimeConstant = 0.4;
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.85; // Làm mịn tần số cao để chuyển động êm dịu
 
     source.connect(analyser);
     analyser.connect(gain);
@@ -117,36 +118,39 @@ export function useAudio(audioRef) {
     const analyser = analyserRef.current;
     const audio = audioRef.current;
     if (!analyser || !audio || audio.paused) {
-      smoothBeatRef.current *= 0.85;
-      smoothVolRef.current *= 0.85;
+      smoothBeatRef.current *= 0.90;
+      smoothVolRef.current *= 0.90;
       return { beat: smoothBeatRef.current, volume: smoothVolRef.current };
     }
 
     analyser.getByteFrequencyData(freqDataRef.current);
     const data = freqDataRef.current;
 
-    // Bass / Beat: lấy các bin tần số thấp (bins 1 - 5, khoảng 30Hz - 200Hz)
-    let bassSum = 0;
-    const bassCount = 5;
-    for (let i = 1; i <= bassCount; i++) {
-      bassSum += data[i];
-    }
-    const rawBass = bassSum / (bassCount * 255);
-    const punchyBass = Math.pow(rawBass, 1.5);
-    if (punchyBass > smoothBeatRef.current) {
-      smoothBeatRef.current = punchyBass;
+    // 1. Bass / Beat: lấy các bin tần số thấp chủ đạo của kick drum và bassline (bins 1 - 3, khoảng 40Hz - 160Hz)
+    const rawBass = (data[1] * 0.45 + data[2] * 0.35 + data[3] * 0.2) / 255;
+    
+    // Theo dõi mức bass nền (running average) để chỉ phản hồi khi có cú đập beat rõ ràng
+    bassHistoryRef.current = bassHistoryRef.current * 0.96 + rawBass * 0.04;
+    const diff = Math.max(0, rawBass - bassHistoryRef.current * 0.85);
+    
+    // Nén giá trị beat mượt mà (soft saturation), không vọt giật
+    const targetBeat = Math.min(1.0, Math.pow(diff * 2.2, 1.2));
+    
+    // Chuyển động đàn hồi mềm mại: Attack êm ái (không nhảy tức thì trong 1 frame), decay thanh thoát
+    if (targetBeat > smoothBeatRef.current) {
+      smoothBeatRef.current += (targetBeat - smoothBeatRef.current) * 0.35;
     } else {
-      smoothBeatRef.current = smoothBeatRef.current * 0.86;
+      smoothBeatRef.current *= 0.92;
     }
 
-    // Volume toàn dải
+    // 2. Volume toàn dải: làm mượt cao để không rung lắc
     let totalSum = 0;
-    const totalCount = data.length;
+    const totalCount = Math.min(32, data.length);
     for (let i = 0; i < totalCount; i++) {
       totalSum += data[i];
     }
     const rawVol = totalSum / (totalCount * 255);
-    smoothVolRef.current = smoothVolRef.current * 0.7 + rawVol * 0.3;
+    smoothVolRef.current = smoothVolRef.current * 0.85 + rawVol * 0.15;
 
     return {
       beat: smoothBeatRef.current,

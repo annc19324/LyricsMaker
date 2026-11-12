@@ -215,44 +215,52 @@ function drawMainMedia(ctx, w, h, curTime, visuals, media, audioLevel = { beat: 
   // ── Phóng to thu nhỏ (Scale / Pulse / Beat / Heartbeat) ──
   let scaleFactor = 1.0;
   if (visuals.scaleEnabled) {
-    const intensity = (visuals.scaleIntensity !== undefined ? visuals.scaleIntensity : 15) / 100;
+    const intensity = (visuals.scaleIntensity !== undefined ? visuals.scaleIntensity : 8) / 100;
     const speed = visuals.scaleSpeed !== undefined ? visuals.scaleSpeed : 1.0;
-    const sensitivity = visuals.scaleSensitivity !== undefined ? visuals.scaleSensitivity : 1.2;
+    const sensitivity = visuals.scaleSensitivity !== undefined ? visuals.scaleSensitivity : 1.0;
     const mode = visuals.scaleMode || 'beat';
 
     if (mode === 'heartbeat') {
-      // Heartbeat Effect: Phóng to nhanh 2 nhịp (lub-dub) rồi thu nhỏ và nghỉ
-      const cycle = (curTime * speed * 1.25) % 1.0;
-      let beatVal = 0;
-      if (cycle < 0.14) {
-        // Nhịp 1 (LUB): đập mạnh
-        beatVal = Math.sin((cycle / 0.14) * Math.PI);
-      } else if (cycle >= 0.17 && cycle < 0.30) {
-        // Nhịp 2 (DUB): đập nhẹ hơn
-        beatVal = Math.sin(((cycle - 0.17) / 0.13) * Math.PI) * 0.7;
-      }
+      // Heartbeat Effect: Mô phỏng nhịp tim đập 2 nhịp (lub-dub) êm ái bằng đường cong Gaussian
+      const period = 1.0 / (Math.max(0.1, speed) * 1.15);
+      const phase = ((curTime % period) + period) % period;
+      const t = phase / period; // 0.0 -> 1.0
+
+      // Nhịp 1 (LUB) mềm mại
+      const d1 = (t - 0.10) / 0.055;
+      const p1 = Math.exp(-d1 * d1);
+
+      // Nhịp 2 (DUB) nhẹ nhàng
+      const d2 = (t - 0.25) / 0.05;
+      const p2 = Math.exp(-d2 * d2) * 0.65;
+
+      const beatVal = Math.max(p1, p2);
       scaleFactor += beatVal * intensity;
     } else if (mode === 'pulse') {
-      // Pulse Effect: Phóng to - thu nhỏ nhịp nhàng như nhịp thở / sóng sine
-      const pulseVal = (Math.sin(curTime * Math.PI * 2 * speed) + 1) / 2;
-      scaleFactor += pulseVal * intensity;
+      // Pulse Effect: Dao động nhịp nhàng, êm dịu như hơi thở (smoothstep easing)
+      const raw = (Math.sin(curTime * Math.PI * 2 * speed * 0.8) + 1) / 2;
+      const smoothPulse = raw * raw * (3 - 2 * raw);
+      scaleFactor += smoothPulse * intensity;
     } else if (mode === 'beat') {
-      // Beat Sync Zoom: Phóng to theo nhịp beat / bass của nhạc
+      // Beat Sync Zoom: Phóng to theo nhịp beat / bass của nhạc với độ đàn hồi mượt mà
       const beatVal = audioLevel && audioLevel.beat !== undefined ? audioLevel.beat : 0;
       if (beatVal > 0) {
-        scaleFactor += Math.min(1.5, beatVal * sensitivity) * intensity;
+        // Làm dịu bằng đường cong sin để nhịp nảy nhẹ nhàng, không bị giật sốc
+        const softBeat = Math.sin(Math.min(1.0, beatVal * sensitivity) * (Math.PI / 2));
+        scaleFactor += softBeat * intensity;
       } else {
-        const fb = (Math.sin(curTime * Math.PI * 2 * speed) + 1) / 2;
-        scaleFactor += fb * intensity * 0.3;
+        const fb = (Math.sin(curTime * Math.PI * 2 * speed * 0.5) + 1) / 2;
+        scaleFactor += fb * intensity * 0.15;
       }
     } else if (mode === 'audio') {
-      // Audio Reactive Scale: Thay đổi theo cường độ âm thanh (Volume toàn dải)
+      // Audio Reactive Scale: Thay đổi theo cường độ âm thanh với chuyển động mềm
       const volVal = audioLevel && audioLevel.volume !== undefined ? audioLevel.volume : 0;
       if (volVal > 0) {
-        scaleFactor += Math.min(1.5, volVal * sensitivity) * intensity;
+        const softVol = Math.sin(Math.min(1.0, volVal * sensitivity) * (Math.PI / 2));
+        scaleFactor += softVol * intensity;
       } else {
-        const fb = (Math.sin(curTime * Math.PI * 2 * speed) + 1) / 2;
-        scaleFactor += fb * intensity * 0.3;
+        const fb = (Math.sin(curTime * Math.PI * 2 * speed * 0.5) + 1) / 2;
+        scaleFactor += fb * intensity * 0.15;
       }
     }
   }

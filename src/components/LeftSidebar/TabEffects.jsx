@@ -53,17 +53,17 @@ export default function TabEffects() {
                 <option value="pulse">Pulse Effect (Ảnh phóng to – thu nhỏ nhịp nhàng liên tục)</option>
               </select>
             </div>
-            <SliderRow id="slider-scale-intensity" label="Mức độ phóng to (Zoom)" min={2} max={60} step={1}
-              value={v?.scaleIntensity ?? 15} displayValue={`+${v?.scaleIntensity ?? 15}%`}
+            <SliderRow id="slider-scale-intensity" label="Mức độ phóng to (Zoom)" min={1} max={30} step={1}
+              value={v?.scaleIntensity ?? 8} displayValue={`+${v?.scaleIntensity ?? 8}%`}
               onChange={(val) => sv('scaleIntensity', val)} />
             {(v?.scaleMode === 'heartbeat' || v?.scaleMode === 'pulse') && (
-              <SliderRow id="slider-scale-speed" label="Tốc độ nhịp đập" min={0.2} max={4} step={0.1}
+              <SliderRow id="slider-scale-speed" label="Tốc độ nhịp đập" min={0.2} max={3} step={0.1}
                 value={v?.scaleSpeed ?? 1.0} displayValue={`${v?.scaleSpeed ?? 1.0}x`}
                 onChange={(val) => sv('scaleSpeed', val)} />
             )}
             {(v?.scaleMode === 'beat' || v?.scaleMode === 'audio' || !v?.scaleMode) && (
-              <SliderRow id="slider-scale-sensitivity" label="Độ nhạy bắt nhạc (Sensitivity)" min={0.2} max={3} step={0.1}
-                value={v?.scaleSensitivity ?? 1.2} displayValue={`${v?.scaleSensitivity ?? 1.2}x`}
+              <SliderRow id="slider-scale-sensitivity" label="Độ nhạy bắt nhạc (Sensitivity)" min={0.2} max={2.5} step={0.1}
+                value={v?.scaleSensitivity ?? 1.0} displayValue={`${v?.scaleSensitivity ?? 1.0}x`}
                 onChange={(val) => sv('scaleSensitivity', val)} />
             )}
           </>

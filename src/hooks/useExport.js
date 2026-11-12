@@ -183,6 +183,7 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
         const windowSize = 1024;
         let smoothBeat = 0;
         let smoothVol = 0;
+        let bassHistory = 0.15;
 
         for (let frame = 0; frame < totalFrames; frame++) {
           const t = Math.max(0, trimStart + frame / fps + (state.exportOffset || 0) / 1000);
@@ -199,22 +200,25 @@ export function useExport(canvasRef, audioRef, mediaRefs, speakerGainRef, audioC
             for (let i = start; i < end; i++) {
               const s = chData[i];
               sumSq += s * s;
-              lp += 0.08 * (s - lp);
+              lp += 0.05 * (s - lp);
               bassSq += lp * lp;
             }
           }
 
           const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
           const bassRms = count > 0 ? Math.sqrt(bassSq / count) : 0;
-          const rawBeat = Math.min(1.0, Math.pow(bassRms * 4.2, 1.5));
-          const rawVol = Math.min(1.0, rms * 3.5);
+          const rawBass = Math.min(1.0, bassRms * 3.8);
 
-          if (rawBeat > smoothBeat) {
-            smoothBeat = rawBeat;
+          bassHistory = bassHistory * 0.95 + rawBass * 0.05;
+          const diff = Math.max(0, rawBass - bassHistory * 0.85);
+          const targetBeat = Math.min(1.0, Math.pow(diff * 2.2, 1.2));
+
+          if (targetBeat > smoothBeat) {
+            smoothBeat += (targetBeat - smoothBeat) * 0.35;
           } else {
-            smoothBeat = smoothBeat * 0.86;
+            smoothBeat *= 0.92;
           }
-          smoothVol = smoothVol * 0.7 + rawVol * 0.3;
+          smoothVol = smoothVol * 0.85 + Math.min(1.0, rms * 3.0) * 0.15;
 
           precomputedAudioLevels.push({
             beat: smoothBeat,
